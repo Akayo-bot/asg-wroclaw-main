@@ -342,7 +342,6 @@ const RoleManager = () => {
             }
 
             // Call Edge Function
-            const SUPABASE_URL = 'https://oywbldhpmpjvavtcknvy.supabase.co';
             const response = await fetch(
                 `${SUPABASE_URL}/functions/v1/get-user-details?userId=${userId}`,
                 {
