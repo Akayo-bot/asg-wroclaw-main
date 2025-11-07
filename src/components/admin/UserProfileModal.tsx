@@ -114,6 +114,9 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
     // Де картка знаходиться ЗАРАЗ (плавно "доганяє" ціль)
     const currentRotation = useRef({ x: 0, y: 0 });
 
+    // 🔥 Калібрування: "домашня позиція" телефону (коли модалка відкривається)
+    const homeRotation = useRef<{ beta: number; gamma: number } | null>(null);
+
     // "Сила" згладжування. (0.05 = повільніше і плавніше, 0.1 = швидше, 0.9 = швидко і різко)
     const easingFactor = 0.05;
 
@@ -150,25 +153,38 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
     // --- 2. ЛОГІКА ДЛЯ ГІРОСКОПА (Телефон) ---
     const orientationHandler = (event: DeviceOrientationEvent) => {
         if (!modalRef.current) return;
+        
+        // 🔥 ФІКС №1: Ігноруємо "порожні" події
+        // Якщо beta або gamma 'null', гіроскоп ще не готовий.
+        if (event.beta == null || event.gamma == null) {
+            return;
+        }
+        
+        const { beta, gamma } = event; // Тепер ми знаємо, що це числа.
 
-        const { beta, gamma } = event; // beta (X-axis), gamma (Y-axis)
+        // 🔥 ФІКС №2: Калібруємо "домашню позицію"
+        if (!homeRotation.current) {
+            homeRotation.current = { beta: beta, gamma: gamma };
+            return; // Виходимо після калібрування
+        }
+
+        // Розраховуємо 'дельту' (зміну) від домашньої позиції
+        const deltaBeta = beta - homeRotation.current.beta;
+        const deltaGamma = gamma - homeRotation.current.gamma;
+
         const maxRotation = 8; // Максимальний нахил картки
 
-        // Обмежуємо значення, щоб уникнути диких обертань
-        const clampedGamma = Math.max(-45, Math.min(45, gamma || 0)); // Телефон Вліво/Вправо
-        const clampedBeta = Math.max(-45, Math.min(45, beta || 0));   // Телефон Вперед/Назад
-
-        // --- 🔥 ОСЬ ФІКС (Міняємо осі) ---
+        // Обмежуємо ДЕЛЬТУ
+        const clampedGammaDelta = Math.max(-45, Math.min(45, deltaGamma));
+        const clampedBetaDelta = Math.max(-45, Math.min(45, deltaBeta));
         
-        // rotateX (Нахил картки Вгору/Вниз) тепер контролюється 'gamma' (нахил телефону Вліво/Вправо)
-        const rotateX = (clampedGamma / 45) * maxRotation; 
-        
-        // rotateY (Нахил картки Вліво/Вправо) тепер контролюється 'beta' (нахил телефону Вперед/Назад)
-        const rotateY = (clampedBeta / 45) * maxRotation;
-        
-        // --- Кінець фіксу ---
-
-        // Ми встановлюємо ЦІЛЬ, а не CSS.
+        // 🔥 ФІКС №3: Правильне ("природне") зіставлення осей
+        // Телефон Вперед/Назад (beta) -> Картка Вгору/Вниз (rotateX)
+        const rotateX = (clampedBetaDelta / 45) * maxRotation;
+        // Телефон Вліво/Вправо (gamma) -> Картка Вліво/Вправо (rotateY)
+        const rotateY = (clampedGammaDelta / 45) * maxRotation;
+            
+        // Встановлюємо ціль для анімації
         targetRotation.current = { x: rotateX, y: rotateY };
     };
     
@@ -242,6 +258,10 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
             if (animationFrameId.current) {
                 cancelAnimationFrame(animationFrameId.current); // Зупиняємо анімацію
             }
+            // Скидаємо калібрування для наступного відкриття
+            homeRotation.current = null;
+            targetRotation.current = { x: 0, y: 0 };
+            currentRotation.current = { x: 0, y: 0 };
         };
     }, [isTouchDevice]); // Залежності залишаються тими ж
 
