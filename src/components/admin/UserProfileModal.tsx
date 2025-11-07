@@ -149,21 +149,26 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
 
     // --- 2. ЛОГІКА ДЛЯ ГІРОСКОПА (Телефон) ---
     const orientationHandler = (event: DeviceOrientationEvent) => {
-        const { beta, gamma } = event; // beta (нахил вперед/назад), gamma (вліво/вправо)
+        if (!modalRef.current) return;
+
+        const { beta, gamma } = event; // beta (X-axis), gamma (Y-axis)
         const maxRotation = 8; // Максимальний нахил картки
 
-        // 'gamma' (вісь Y) діапазон [-90, 90]
-        // 'beta' (вісь X) діапазон [-180, 180]
-        
         // Обмежуємо значення, щоб уникнути диких обертань
-        const clampedGamma = Math.max(-45, Math.min(45, gamma || 0));
-        const clampedBeta = Math.max(-45, Math.min(45, beta || 0));
+        const clampedGamma = Math.max(-45, Math.min(45, gamma || 0)); // Телефон Вліво/Вправо
+        const clampedBeta = Math.max(-45, Math.min(45, beta || 0));   // Телефон Вперед/Назад
 
-        // Перетворюємо градуси нахилу телефону в градуси нахилу картки
-        const rotateY = (clampedGamma / 45) * maxRotation;
-        const rotateX = (clampedBeta / 45) * maxRotation;
+        // --- 🔥 ОСЬ ФІКС (Міняємо осі) ---
+        
+        // rotateX (Нахил картки Вгору/Вниз) тепер контролюється 'gamma' (нахил телефону Вліво/Вправо)
+        const rotateX = (clampedGamma / 45) * maxRotation; 
+        
+        // rotateY (Нахил картки Вліво/Вправо) тепер контролюється 'beta' (нахил телефону Вперед/Назад)
+        const rotateY = (clampedBeta / 45) * maxRotation;
+        
+        // --- Кінець фіксу ---
 
-        // 🔥 ЗМІНА: Ми ВСТАНОВЛЮЄМО ЦІЛЬ, а не CSS.
+        // Ми встановлюємо ЦІЛЬ, а не CSS.
         targetRotation.current = { x: rotateX, y: rotateY };
     };
     
