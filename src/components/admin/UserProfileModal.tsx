@@ -114,8 +114,8 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
     // Де картка знаходиться ЗАРАЗ (плавно "доганяє" ціль)
     const currentRotation = useRef({ x: 0, y: 0 });
 
-    // "Сила" згладжування. (0.1 = повільно і плавно, 0.9 = швидко і різко)
-    const easingFactor = 0.1;
+    // "Сила" згладжування. (0.05 = повільніше і плавніше, 0.1 = швидше, 0.9 = швидко і різко)
+    const easingFactor = 0.05;
 
     // --- 1. ЛОГІКА ДЛЯ МИШІ (Десктоп) ---
     const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
