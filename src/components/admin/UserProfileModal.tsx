@@ -166,20 +166,18 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
         const deltaBeta = beta - homeRotation.current.beta;
         const deltaGamma = gamma - homeRotation.current.gamma;
 
-        // 🔥 ОСЬ ФІКС: Різні кути
-        const maxRotationX = 15; // "побольше" (Вгору/Вниз)
-        const maxRotationY = 8;  // "небольшие" (Вліво/Вправо)
+        // 🔥 ОСЬ ФІКС: однаковий кут
+        const maxRotation = 15; // Однаково для обох осей
         const sensitivity = 30; // 30 градусів нахилу = повний поворот
 
         // Обмежуємо ДЕЛЬТУ
         const clampedGammaDelta = Math.max(-sensitivity, Math.min(sensitivity, deltaGamma));
         const clampedBetaDelta = Math.max(-sensitivity, Math.min(sensitivity, deltaBeta));
         
-        // (Природне зіставлення осей)
         // Телефон Вперед/Назад (beta) -> Картка Вгору/Вниз (rotateX)
-        const rotateX = (clampedBetaDelta / sensitivity) * maxRotationX;
+        const rotateX = (clampedBetaDelta / sensitivity) * maxRotation;
         // Телефон Вліво/Вправо (gamma) -> Картка Вліво/Вправо (rotateY)
-        const rotateY = (clampedGammaDelta / sensitivity) * maxRotationY;
+        const rotateY = (clampedGammaDelta / sensitivity) * maxRotation;
             
         // Встановлюємо ціль для анімації
         targetRotation.current = { x: rotateX, y: rotateY };
