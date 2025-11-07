@@ -118,7 +118,7 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
     const homeRotation = useRef<{ beta: number; gamma: number } | null>(null);
 
     // "Сила" згладжування. (0.05 = повільніше і плавніше, 0.1 = швидше, 0.9 = швидко і різко)
-    const easingFactor = 0.05;
+    const easingFactor = 0.12; // Зробимо жвавіше
 
     // --- 1. ЛОГІКА ДЛЯ МИШІ (Десктоп) ---
     const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
@@ -132,7 +132,7 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
         const y = e.clientY - rect.top - rect.height / 2;
 
         // Максимальний нахил (у градусах)
-        const maxRotation = 8; 
+        const maxRotation = 12; // Збільшуємо максимальний нахил 
 
         // Розрахунок обертання
         // (x / (rect.width / 2)) дає нам значення від -1 до 1
@@ -172,17 +172,17 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
         const deltaBeta = beta - homeRotation.current.beta;
         const deltaGamma = gamma - homeRotation.current.gamma;
 
-        const maxRotation = 8; // Максимальний нахил картки
+        const maxRotation = 12; // Збільшуємо максимальний нахил
 
         // Обмежуємо ДЕЛЬТУ
-        const clampedGammaDelta = Math.max(-45, Math.min(45, deltaGamma));
-        const clampedBetaDelta = Math.max(-45, Math.min(45, deltaBeta));
+        const clampedGammaDelta = Math.max(-30, Math.min(30, deltaGamma)); // ЗМІНА
+        const clampedBetaDelta = Math.max(-30, Math.min(30, deltaBeta));   // ЗМІНА
         
         // 🔥 ФІКС №3: Правильне ("природне") зіставлення осей
         // Телефон Вперед/Назад (beta) -> Картка Вгору/Вниз (rotateX)
-        const rotateX = (clampedBetaDelta / 45) * maxRotation;
+        const rotateX = (clampedBetaDelta / 30) * maxRotation; // ЗМІНА
         // Телефон Вліво/Вправо (gamma) -> Картка Вліво/Вправо (rotateY)
-        const rotateY = (clampedGammaDelta / 45) * maxRotation;
+        const rotateY = (clampedGammaDelta / 30) * maxRotation; // ЗМІНА
             
         // Встановлюємо ціль для анімації
         targetRotation.current = { x: rotateX, y: rotateY };
