@@ -96,7 +96,7 @@ const formatDate = (dateString: string | null | undefined) => {
 
 // --- Основний компонент Модалки ---
 export default function UserProfileModal({ user, onClose }: UserProfileModalProps) {
-    // --- ЛОГІКА 3D-НАХИЛУ ---
+    // --- 🔥 ПОКРАЩЕНА ЛОГІКА АНІМАЦІЇ ---
     const modalRef = useRef<HTMLDivElement>(null);
 
     // 🔥 ФІКС №2: Стан, щоб показати кнопку тільки на iOS
@@ -104,6 +104,18 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
 
     // 🔥 ФІКС №1: Визначаємо, чи це тач-пристрій
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    // Нам потрібні Ref, щоб зберігати значення, не викликаючи ре-рендер
+    const animationFrameId = useRef<number | null>(null);
+    
+    // Де картка має бути (встановлюється мишею або гіроскопом)
+    const targetRotation = useRef({ x: 0, y: 0 }); 
+    
+    // Де картка знаходиться ЗАРАЗ (плавно "доганяє" ціль)
+    const currentRotation = useRef({ x: 0, y: 0 });
+
+    // "Сила" згладжування. (0.1 = повільно і плавно, 0.9 = швидко і різко)
+    const easingFactor = 0.1;
 
     // --- 1. ЛОГІКА ДЛЯ МИШІ (Десктоп) ---
     const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
@@ -124,22 +136,19 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
         const rotateY = (x / (rect.width / 2)) * maxRotation;
         const rotateX = -(y / (rect.height / 2)) * maxRotation; // Мінус, бо вісь Y інвертована
 
-        // Застосовуємо стиль
-        modalRef.current.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        // 🔥 ЗМІНА: Ми більше не торкаємось CSS. Ми просто ВСТАНОВЛЮЄМО ЦІЛЬ.
+        targetRotation.current = { x: rotateX, y: rotateY };
     };
 
     const handleMouseLeave = () => {
         // 🔥 ФІКС №1: Також ігноруємо на телефонах
-        if (isTouchDevice || !modalRef.current) return;
-        // Повертаємо картку у вихідне положення
-        modalRef.current.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
+        if (isTouchDevice) return;
+        // 🔥 ЗМІНА: Повертаємо ЦІЛЬ в 0. Анімація зробить решту.
+        targetRotation.current = { x: 0, y: 0 };
     };
-    // --- Кінець логіки 3D-нахилу для миші ---
 
-    // --- ЛОГІКА ДЛЯ ГІРОСКОПА (Телефон) ---
+    // --- 2. ЛОГІКА ДЛЯ ГІРОСКОПА (Телефон) ---
     const orientationHandler = (event: DeviceOrientationEvent) => {
-        if (!modalRef.current) return;
-
         const { beta, gamma } = event; // beta (нахил вперед/назад), gamma (вліво/вправо)
         const maxRotation = 8; // Максимальний нахил картки
 
@@ -154,11 +163,8 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
         const rotateY = (clampedGamma / 45) * maxRotation;
         const rotateX = (clampedBeta / 45) * maxRotation;
 
-        requestAnimationFrame(() => {
-            if (modalRef.current) {
-                modalRef.current.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-            }
-        });
+        // 🔥 ЗМІНА: Ми ВСТАНОВЛЮЄМО ЦІЛЬ, а не CSS.
+        targetRotation.current = { x: rotateX, y: rotateY };
     };
     
     // 🔥 ФІКС №2: Функція, яку викличе кнопка
@@ -177,13 +183,12 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
         }
     };
 
-    // --- 🔥 БЛОКУВАННЯ СКРОЛУ ---
+    // --- 3. ГОЛОВНИЙ `useEffect` (Цикл анімації + Блокування скролу) ---
     useEffect(() => {
-        // Коли модалка відкривається:
+        // Блокуємо скрол
         const originalOverflow = window.getComputedStyle(document.body).overflow;
         const originalPaddingRight = window.getComputedStyle(document.body).paddingRight;
         
-        // Блокуємо скролл
         document.body.style.overflow = 'hidden';
         
         // На мобільних пристроях також блокуємо touchmove
@@ -195,32 +200,45 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
             document.body.addEventListener('touchmove', preventTouchMove, { passive: false });
         }
 
-        // Коли модалка закривається (функція очищення):
+        // Налаштовуємо гіроскоп (як і раніше)
+        // @ts-ignore
+        if (isTouchDevice && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            setNeedsGyroPermission(true);
+        } else if (isTouchDevice) {
+            window.addEventListener('deviceorientation', orientationHandler);
+        }
+
+        // 🔥 НОВЕ: Запускаємо анімаційний цикл
+        const animate = () => {
+            if (!modalRef.current) return;
+
+            // Розрахунок згладжування (Lerp)
+            currentRotation.current.x += (targetRotation.current.x - currentRotation.current.x) * easingFactor;
+            currentRotation.current.y += (targetRotation.current.y - currentRotation.current.y) * easingFactor;
+
+            // Застосовуємо плавні, проміжні значення до CSS
+            modalRef.current.style.transform = `perspective(1000px) rotateX(${currentRotation.current.x}deg) rotateY(${currentRotation.current.y}deg)`;
+
+            // Продовжуємо цикл
+            animationFrameId.current = requestAnimationFrame(animate);
+        };
+        
+        // Запускаємо цикл
+        animationFrameId.current = requestAnimationFrame(animate);
+
+        // Очищення
         return () => {
-            document.body.style.overflow = originalOverflow;
+            document.body.style.overflow = originalOverflow; // Повертаємо скрол
             document.body.style.paddingRight = originalPaddingRight;
             if (isTouchDevice) {
                 document.body.removeEventListener('touchmove', preventTouchMove);
             }
+            window.removeEventListener('deviceorientation', orientationHandler); // Вимикаємо гіроскоп
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current); // Зупиняємо анімацію
+            }
         };
-    }, [isTouchDevice]); // Виконуємо при монтуванні (відкритті) і розмонтуванні (закритті)
-
-    // useEffect для підключення/відключення слухачів
-    useEffect(() => {
-        // @ts-ignore
-        if (isTouchDevice && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            // Це iOS 13+. Нам потрібна кнопка.
-            setNeedsGyroPermission(true);
-        } else if (isTouchDevice) {
-            // Це Android. Має працювати одразу.
-            window.addEventListener('deviceorientation', orientationHandler);
-        }
-
-        // Очищення при закритті модалки
-        return () => {
-            window.removeEventListener('deviceorientation', orientationHandler);
-        };
-    }, [isTouchDevice]); // Виконуємо при зміні isTouchDevice
+    }, [isTouchDevice]); // Залежності залишаються тими ж
 
     // Определяем цвет текста роли на основе роли пользователя
     const safeRole = user.role?.toLowerCase() || 'user';
@@ -253,7 +271,7 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
             <div
                 ref={modalRef} // <--- ПРИВ'ЯЗУЄМО REF
                 onClick={(e) => e.stopPropagation()} // Не закривати при кліку на картку
-                className="relative w-full max-w-sm mx-4 sm:mx-6 md:mx-auto rounded-2xl border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-lg shadow-[0_0_40px_rgba(70,214,200,0.2)] transition-transform duration-100 ease-out"
+                className="relative w-full max-w-sm mx-4 sm:mx-6 md:mx-auto rounded-2xl border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-lg shadow-[0_0_40px_rgba(70,214,200,0.2)]"
                 style={{ transformStyle: 'preserve-3d' }} // <--- Потрібно для 3D
             >
                 {/* Кнопка закриття (Х) */}
