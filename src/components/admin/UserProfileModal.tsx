@@ -152,37 +152,34 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
 
     // --- 2. ЛОГІКА ДЛЯ ГІРОСКОПА (Телефон) ---
     const orientationHandler = (event: DeviceOrientationEvent) => {
-        if (!modalRef.current) return;
-        
-        // 🔥 ФІКС №1: Ігноруємо "порожні" події
-        // Якщо beta або gamma 'null', гіроскоп ще не готовий.
-        if (event.beta == null || event.gamma == null) {
+        if (!modalRef.current || event.beta == null || event.gamma == null) {
             return;
         }
         
-        const { beta, gamma } = event; // Тепер ми знаємо, що це числа.
+        const { beta, gamma } = event;
 
-        // 🔥 ФІКС №2: Калібруємо "домашню позицію"
         if (!homeRotation.current) {
             homeRotation.current = { beta: beta, gamma: gamma };
-            return; // Виходимо після калібрування
+            return; 
         }
 
-        // Розраховуємо 'дельту' (зміну) від домашньої позиції
         const deltaBeta = beta - homeRotation.current.beta;
         const deltaGamma = gamma - homeRotation.current.gamma;
 
-        const maxRotation = 12; // Збільшуємо максимальний нахил
+        // 🔥 ОСЬ ФІКС: Різні кути
+        const maxRotationX = 15; // "побольше" (Вгору/Вниз)
+        const maxRotationY = 8;  // "небольшие" (Вліво/Вправо)
+        const sensitivity = 30; // 30 градусів нахилу = повний поворот
 
         // Обмежуємо ДЕЛЬТУ
-        const clampedGammaDelta = Math.max(-30, Math.min(30, deltaGamma)); // ЗМІНА
-        const clampedBetaDelta = Math.max(-30, Math.min(30, deltaBeta));   // ЗМІНА
+        const clampedGammaDelta = Math.max(-sensitivity, Math.min(sensitivity, deltaGamma));
+        const clampedBetaDelta = Math.max(-sensitivity, Math.min(sensitivity, deltaBeta));
         
-        // 🔥 ФІКС №3: Правильне ("природне") зіставлення осей
+        // (Природне зіставлення осей)
         // Телефон Вперед/Назад (beta) -> Картка Вгору/Вниз (rotateX)
-        const rotateX = (clampedBetaDelta / 30) * maxRotation; // ЗМІНА
+        const rotateX = (clampedBetaDelta / sensitivity) * maxRotationX;
         // Телефон Вліво/Вправо (gamma) -> Картка Вліво/Вправо (rotateY)
-        const rotateY = (clampedGammaDelta / 30) * maxRotation; // ЗМІНА
+        const rotateY = (clampedGammaDelta / sensitivity) * maxRotationY;
             
         // Встановлюємо ціль для анімації
         targetRotation.current = { x: rotateX, y: rotateY };
