@@ -1,0 +1,16 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="blob1-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4CAF50" stop-opacity="0.3"/>
+      <stop offset="50%" stop-color="#66BB6A" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#81C784" stop-opacity="0.1"/>
+    </linearGradient>
+    <filter id="blur1">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="25"/>
+    </filter>
+  </defs>
+  <path d="M200,50 C280,50 350,120 350,200 C350,280 280,350 200,350 C120,350 50,280 50,200 C50,120 120,50 200,50 Z
+           M200,80 C250,90 320,110 330,180 C340,250 310,320 240,340 C170,360 90,330 70,260 C50,190 100,100 200,80 Z" 
+         fill="url(#blob1-gradient)" 
+         filter="url(#blur1)"/>
+</svg>

@@ -1,0 +1,177 @@
+/* === Кнопка "На головну": Green Neon + Glass === */
+.btn-home {
+  /* палитра – можно подкрутить под вкус */
+  --home-bg:        #07150d;
+  --home-bg-2:      #0b1e14;
+  --home-border:    #153725;
+  --home-text:      #d7f5e6;
+  --home-neon:      #00ff88;
+  --home-neon-soft: rgba(0,255,136,.32);
+  --home-neon-hard: rgba(0,255,136,.55);
+
+  color: var(--home-text);
+  background: linear-gradient(to bottom, var(--home-bg), var(--home-bg-2));
+  border: 1px solid var(--home-border);
+  border-radius: 10px;
+
+  /* glass */
+  background-clip: padding-box;
+  backdrop-filter: blur(6px) saturate(130%);
+  -webkit-backdrop-filter: blur(6px) saturate(130%);
+
+  /* лёгкий внутренний объём */
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 0 12px rgba(0,255,136,0.08);
+
+  transition:
+    background .25s ease,
+    border-color .25s ease,
+    box-shadow .25s ease,
+    filter .25s ease,
+    transform .1s ease,
+    color .25s ease;
+}
+
+/* иконка домика наследует цвет текста */
+.btn-home svg {
+  color: currentColor;
+}
+
+/* hover — зелёный неон + лёгкая "корона" вокруг */
+.btn-home:hover {
+  color: var(--home-neon);
+  border-color: var(--home-neon);
+  box-shadow:
+    0 0 18px var(--home-neon-soft),
+    0 0 36px var(--home-neon-soft),
+    inset 0 0 16px rgba(0,255,136,0.18);
+  filter: drop-shadow(0 0 10px var(--home-neon-soft));
+}
+
+/* небольшое смещение при клике, как у реальной кнопки */
+.btn-home:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow:
+    0 0 24px var(--home-neon-hard),
+    inset 0 0 22px rgba(0,255,136,0.24);
+}
+
+/* доступность: кольцо фокуса */
+.btn-home:focus-visible {
+  outline: none;
+  border-color: var(--home-neon);
+  box-shadow:
+    0 0 0 3px rgba(0,255,136,0.25),
+    inset 0 0 14px rgba(0,255,136,0.18);
+}
+
+/* уважение к системным настройкам анимаций */
+@media (prefers-reduced-motion: reduce) {
+  .btn-home {
+    transition: none;
+    filter: none;
+  }
+}
+
+/* === Кнопка "Опублікувати": теперь использует стиль от btn-home (glass neon) === */
+.btn-back {
+  /* палитра – зелёный (emerald), как у остальных кнопок в редакторе */
+  --back-bg:        #07150d;
+  --back-bg-2:      #0b1e14;
+  --back-border:    #153725;
+  --back-text:      #d7f5e6;
+  --back-neon:      #10b981; /* emerald-500 */
+  --back-neon-soft: rgba(16,185,129,.32);
+  --back-neon-hard: rgba(16,185,129,.55);
+
+  color: var(--back-neon);
+  background: linear-gradient(to bottom, var(--back-bg), var(--back-bg-2));
+  border: 1px solid var(--back-neon);
+  border-radius: 10px;
+
+  /* glass */
+  background-clip: padding-box;
+  backdrop-filter: blur(6px) saturate(130%);
+  -webkit-backdrop-filter: blur(6px) saturate(130%);
+
+  /* свечение в состоянии покоя (как было при hover) */
+  box-shadow:
+    0 0 12px rgba(16,185,129,0.20),
+    0 0 24px rgba(16,185,129,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 0 12px rgba(16,185,129,0.12);
+  filter: drop-shadow(0 0 6px rgba(16,185,129,0.20));
+
+  transition:
+    background .25s ease,
+    border-color .25s ease,
+    box-shadow .25s ease,
+    filter .25s ease,
+    transform .1s ease,
+    color .25s ease;
+}
+
+/* иконка наследует цвет текста */
+.btn-back svg {
+  color: currentColor;
+}
+
+/* hover — пульсирующее свечение */
+.btn-back:hover {
+  color: var(--back-neon);
+  border-color: var(--back-neon);
+  animation: btn-back-pulse 2s ease-in-out infinite;
+}
+
+@keyframes btn-back-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 12px rgba(16,185,129,0.20),
+      0 0 24px rgba(16,185,129,0.18),
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      inset 0 0 12px rgba(16,185,129,0.12);
+    filter: drop-shadow(0 0 6px rgba(16,185,129,0.20));
+  }
+  50% {
+    box-shadow:
+      0 0 18px rgba(16,185,129,0.35),
+      0 0 32px rgba(16,185,129,0.28),
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      inset 0 0 16px rgba(16,185,129,0.20);
+    filter: drop-shadow(0 0 10px rgba(16,185,129,0.35));
+  }
+}
+
+/* небольшое смещение при клике, как у реальной кнопки */
+.btn-back:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow:
+    0 0 24px var(--back-neon-hard),
+    inset 0 0 22px rgba(16,185,129,0.24);
+}
+
+/* доступность: кольцо фокуса */
+.btn-back:focus-visible {
+  outline: none;
+  border-color: var(--back-neon);
+  box-shadow:
+    0 0 0 3px rgba(16,185,129,0.25),
+    inset 0 0 14px rgba(16,185,129,0.18);
+}
+
+/* уважение к системным настройкам анимаций */
+@media (prefers-reduced-motion: reduce) {
+  .btn-back {
+    transition: none;
+    filter: none;
+    animation: none;
+  }
+  .btn-back:hover {
+    animation: none;
+  }
+  .btn-back svg {
+    transition: none;
+  }
+}
+

@@ -1,0 +1,280 @@
+/* Colors adapted for dark admin panel theme */
+/* Original: dark: #0a0a0a, middle: #f0f0f0, light: #787878 */
+/* Adapted: Red Neon + Glass theme */
+
+.logoutButton {
+  /* Animation variables */
+  --figure-duration: 100ms;
+  --transform-figure: none;
+  --walking-duration: 100ms;
+  --transform-arm1: none;
+  --transform-wrist1: none;
+  --transform-arm2: none;
+  --transform-wrist2: none;
+  --transform-leg1: none;
+  --transform-calf1: none;
+  --transform-leg2: none;
+  --transform-calf2: none;
+
+  /* Red Neon + Glass theme variables */
+  --exit-bg:        #160607;
+  --exit-bg-2:      #1f090b;
+  --exit-border:    #4a0f12;
+  --exit-text:      #ffd8db;
+  --exit-neon:      #ff273a;
+  --exit-neon-soft: rgba(255,39,58,.35);
+  --exit-neon-hard: rgba(255,39,58,.65);
+
+  color: var(--exit-text);
+  background: linear-gradient(to bottom, var(--exit-bg), var(--exit-bg-2));
+  border: 1px solid var(--exit-border);
+  border-radius: 10px;
+
+  /* Glass effect */
+  background-clip: padding-box;
+  backdrop-filter: blur(6px) saturate(135%);
+  -webkit-backdrop-filter: blur(6px) saturate(135%);
+
+  /* Inset volume effect */
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 0 12px rgba(255,39,58,0.10);
+
+  cursor: pointer;
+  display: block;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  height: 40px;
+  outline: none;
+  padding: 0 0 0 20px;
+  perspective: 100px;
+  position: relative;
+  text-align: left;
+  width: 130px;
+  -webkit-tap-highlight-color: transparent;
+
+  transition: 
+    background .25s ease,
+    border-color .25s ease,
+    box-shadow .25s ease,
+    filter .25s ease,
+    transform .1s ease;
+}
+
+/* Отключаем pointer-events для всех дочерних элементов, чтобы target cursor захватывал только кнопку */
+.logoutButton * {
+  pointer-events: none;
+}
+
+/* Удаляем класс cursor-target с дочерних элементов */
+.logoutButton * .cursor-target,
+.logoutButton svg.cursor-target,
+.logoutButton span.cursor-target {
+  pointer-events: none !important;
+}
+
+.logoutButton:hover {
+  color: var(--exit-text);
+  border-color: var(--exit-neon);
+  /* Neon glow + inner heat */
+  box-shadow:
+    0 0 18px var(--exit-neon-soft),
+    0 0 36px var(--exit-neon-soft),
+    inset 0 0 18px rgba(255,39,58,0.20);
+  /* Soft corona around */
+  filter: drop-shadow(0 0 10px var(--exit-neon-soft));
+}
+
+.logoutButton:hover .door {
+  transform: rotateY(20deg);
+}
+
+.logoutButton:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow:
+    0 0 24px var(--exit-neon-hard),
+    inset 0 0 22px rgba(255,39,58,0.28);
+}
+
+.logoutButton:active .door {
+  transform: rotateY(28deg);
+}
+
+.logoutButton:focus-visible {
+  outline: none;
+  border-color: var(--exit-neon);
+  box-shadow:
+    0 0 0 3px rgba(255,39,58,0.25),
+    inset 0 0 14px rgba(255,39,58,0.20);
+}
+
+/* button was clicked */
+.logoutButton.clicked .door {
+  transform: rotateY(35deg);
+}
+
+/* close the door */
+.logoutButton.door-slammed .door {
+  transform: none;
+  transition: transform 100ms ease-in 250ms;
+}
+
+/* the figure is falling */
+.logoutButton.falling {
+  animation: shake 200ms linear;
+}
+
+.logoutButton.falling .bang {
+  animation: flash 300ms linear;
+}
+
+.logoutButton.falling .figure {
+  animation: spin 1000ms infinite linear;
+  bottom: -1080px;
+  opacity: 0;
+  right: 1px;
+  transition: transform calc(var(--figure-duration) * 1ms) linear,
+    bottom calc(var(--figure-duration) * 1ms) cubic-bezier(0.7, 0.1, 1, 1) 100ms,
+    opacity calc(var(--figure-duration) * 0.25ms) linear calc(var(--figure-duration) * 0.75ms);
+  z-index: 1;
+}
+
+.logoutButton--dark .button-text {
+  color: var(--exit-text);
+}
+
+.logoutButton--dark .door,
+.logoutButton--dark .doorway {
+  fill: var(--exit-text);
+}
+
+.button-text {
+  color: var(--exit-text);
+  font-weight: 500;
+  position: relative;
+  z-index: 10;
+}
+
+.logoutButton svg {
+  display: block;
+  position: absolute;
+}
+
+.figure {
+  bottom: 5px;
+  fill: var(--exit-text);
+  right: 18px;
+  transform: var(--transform-figure);
+  transition: transform calc(var(--figure-duration) * 1ms) cubic-bezier(0.2, 0.1, 0.80, 0.9);
+  width: 30px;
+  z-index: 4;
+}
+
+.door,
+.doorway {
+  bottom: 4px;
+  fill: var(--exit-text);
+  right: 12px;
+  width: 32px;
+} 
+
+.door {
+  transform: rotateY(20deg);
+  transform-origin: 100% 50%;
+  transform-style: preserve-3d;
+  transition: transform 200ms ease;
+  z-index: 5;
+}
+
+.door path {
+  fill: var(--exit-neon);
+  stroke: var(--exit-neon);
+  stroke-width: 4;
+}
+
+.doorway {
+  z-index: 3;
+}
+
+.bang {
+  opacity: 0;
+}
+
+.arm1, .wrist1, .arm2, .wrist2, .leg1, .calf1, .leg2, .calf2 {
+  transition: transform calc(var(--walking-duration) * 1ms) ease-in-out;
+}
+
+.arm1 {
+  transform: var(--transform-arm1);
+  transform-origin: 52% 45%;
+}
+
+.wrist1 {
+  transform: var(--transform-wrist1);
+  transform-origin: 59% 55%;
+}
+
+.arm2 {
+  transform: var(--transform-arm2);
+  transform-origin: 47% 43%;
+}
+
+.wrist2 {
+  transform: var(--transform-wrist2);
+  transform-origin: 35% 47%;
+}
+
+.leg1 {
+  transform: var(--transform-leg1);
+  transform-origin: 47% 64.5%;
+}
+
+.calf1 {
+  transform: var(--transform-calf1);
+  transform-origin: 55.5% 71.5%;
+}
+
+.leg2 {
+  transform: var(--transform-leg2);
+  transform-origin: 43% 63%;
+}
+
+.calf2 {
+  transform: var(--transform-calf2);
+  transform-origin: 41.5% 73%;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg) scale(0.94); }
+  to { transform: rotate(359deg) scale(0.94); }
+}
+
+@keyframes shake {
+  0% { transform: rotate(-1deg); }
+  50% { transform: rotate(2deg); }
+  100% { transform: rotate(-1deg); }
+}
+
+@keyframes flash {
+  0% { opacity: 0.4; }
+  100% { opacity: 0; }
+}
+
+/* Reduce animation for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .logoutButton {
+    transition: none;
+    filter: none;
+  }
+  .logoutButton.falling {
+    animation: none;
+  }
+  .logoutButton.falling .bang {
+    animation: none;
+  }
+  .logoutButton.falling .figure {
+    animation: none;
+  }
+}
+

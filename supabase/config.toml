@@ -1,0 +1,4 @@
+project_id = "oywbldhpmpjvavtcknvy"
+
+[functions.check-event-cancellation]
+verify_jwt = false

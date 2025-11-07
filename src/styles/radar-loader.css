@@ -1,0 +1,102 @@
+:root {
+  --radar-size: 140px;
+  --radar-grid: rgba(0, 255, 120, 0.22);
+  --radar-bright: rgba(0, 255, 120, 0.38);
+}
+
+.radar-loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.125rem;
+}
+
+.radar-loader {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(
+      circle at center,
+      var(--radar-grid) 0 1px,
+      transparent 1px 14px
+    ),
+    repeating-conic-gradient(
+      from -90deg,
+      var(--radar-grid) 0 1deg,
+      transparent 1deg 15deg
+    ),
+    radial-gradient(
+      closest-side,
+      rgba(0, 255, 120, 0.12),
+      transparent 70%
+    );
+  border: 1px solid var(--radar-bright);
+  box-shadow: 0 0 14px rgba(0, 255, 120, 0.1) inset;
+  overflow: hidden;
+}
+
+.radar-sweep {
+  position: absolute;
+  inset: -15%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -90deg,
+    rgba(90, 255, 140, 0) 0deg,
+    rgba(90, 255, 140, 0.22) 10deg,
+    rgba(90, 255, 140, 0.6) 22deg,
+    rgba(90, 255, 140, 0.12) 42deg,
+    rgba(90, 255, 140, 0) 60deg
+  );
+  filter: blur(4px);
+  transform: rotate(0deg);
+  will-change: transform;
+  mix-blend-mode: screen;
+}
+
+.radar-blip {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00ff88;
+  opacity: 0.05;
+  transform: translate(-50%, -50%) scale(0.7);
+  box-shadow: 0 0 6px 2px rgba(0, 255, 120, 0.35);
+  transition: opacity 0.25s linear, 
+              transform 0.25s ease-out, 
+              box-shadow 0.25s linear;
+}
+
+.radar-blip-on {
+  opacity: 0.8;
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 0 10px 3px rgba(0, 255, 120, 0.5);
+}
+
+.radar-label {
+  color: #9dffb0;
+  opacity: 0.7;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  text-transform: uppercase;
+}
+
+/* Анимация появления радара */
+@keyframes radar-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.radar-loader {
+  animation: radar-fade-in 0.3s ease-out;
+}
+

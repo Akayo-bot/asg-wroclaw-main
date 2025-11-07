@@ -1,0 +1,369 @@
+/* Target Cursor Styles */
+
+/* Hide custom cursor on mobile/touch devices - SPECIFIC SELECTORS */
+@media (pointer: coarse) or (hover: none) or (max-width: 767px) {
+  /* Hide ONLY our custom cursor elements - VERY SPECIFIC */
+  .target-cursor-corner,
+  .target-cursor-dot,
+  [class^="target-cursor"],
+  [class*=" target-cursor"],
+  div[style*="cursor"][style*="fixed"][style*="z-[9999]"],
+  div[style*="fixed"][style*="pointer-events-none"][style*="z-[9999]"] {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  
+  /* ВАЖНО: ВСЕ остальные элементы видимые и кликабельные */
+  body,
+  body * {
+    pointer-events: auto !important;
+  }
+  
+  /* Убедиться что интерактивные элементы работают */
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [role="menuitem"],
+  [type="button"],
+  [type="submit"] {
+    cursor: auto !important;
+    pointer-events: auto !important;
+    /* НЕ трогаем display - это ломает responsive layout */
+  }
+  
+  /* Убедиться что контент кликабельный */
+  main,
+  div,
+  section,
+  article,
+  header,
+  footer,
+  form {
+    pointer-events: auto !important;
+    /* НЕ трогаем display - это ломает responsive layout */
+  }
+}
+
+/* Desktop only - custom cursor styles */
+@media (pointer: fine) and (hover: hover) and (min-width: 768px) {
+  .cursor-target {
+    cursor: none !important;
+  }
+}
+
+/* Desktop only - custom cursor styles for interactive elements */
+@media (pointer: fine) and (hover: hover) and (min-width: 768px) {
+  .cursor-target * {
+    cursor: none !important;
+  }
+
+  .cursor-target:hover {
+    cursor: none !important;
+  }
+
+  .cursor-target:hover * {
+    cursor: none !important;
+  }
+
+  /* Disable default cursor on all interactive elements */
+  button.cursor-target,
+  a.cursor-target,
+  [role="button"].cursor-target,
+  input.cursor-target,
+  select.cursor-target,
+  textarea.cursor-target {
+    cursor: none !important;
+  }
+
+  /* Disable pointer cursor on hover */
+  .cursor-target:hover,
+  .cursor-target:focus,
+  .cursor-target:active {
+    cursor: none !important;
+  }
+
+  /* Ensure no cursor inheritance */
+  .cursor-target * {
+    cursor: inherit !important;
+  }
+
+  /* Specific fixes for common elements */
+  .cursor-target svg,
+  .cursor-target img,
+  .cursor-target span,
+  .cursor-target div,
+  .cursor-target p {
+    cursor: none !important;
+    pointer-events: none;
+  }
+
+  /* Re-enable pointer events for the main element */
+  .cursor-target {
+    pointer-events: auto;
+  }
+}
+
+/* Desktop only - Auto-target common interactive elements */
+@media (pointer: fine) and (hover: hover) and (min-width: 768px) {
+  button,
+  a,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  input[type="range"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="color"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="number"],
+  select,
+  textarea,
+  form,
+  fieldset,
+  legend,
+  label,
+  optgroup,
+  option,
+  datalist,
+  output,
+  progress,
+  meter,
+  [tabindex]:not([tabindex="-1"]),
+  [onclick],
+  [onmousedown],
+  [onmouseup],
+  [onmouseover],
+  [onmouseout],
+  [onfocus],
+  [onblur],
+  [contenteditable],
+  [draggable="true"],
+  summary,
+  label[for] {
+    cursor: none !important;
+  }
+
+  /* Ensure all interactive elements are targeted */
+  button:hover,
+  a:hover,
+  [role="button"]:hover,
+  input[type="button"]:hover,
+  input[type="submit"]:hover,
+  input[type="reset"]:hover,
+  select:hover,
+  textarea:hover,
+  [tabindex]:not([tabindex="-1"]):hover,
+  [onclick]:hover,
+  [onmousedown]:hover,
+  [onmouseup]:hover,
+  [onmouseover]:hover,
+  [onmouseout]:hover,
+  [onfocus]:hover,
+  [onblur]:hover {
+    cursor: none !important;
+  }
+
+  /* Specific UI component targeting */
+  [data-radix-collection-item],
+  [data-radix-select-item],
+  [data-radix-dropdown-menu-item],
+  [data-radix-context-menu-item],
+  [data-radix-menubar-item],
+  [data-radix-navigation-menu-item],
+  [role="menuitem"],
+  [data-state="open"],
+  [data-state="closed"],
+  [data-logout-button],
+  [data-auth-tab] {
+    cursor: none !important;
+  }
+}
+
+/* Desktop only - Radix UI Portal elements */
+@media (pointer: fine) and (hover: hover) and (min-width: 768px) {
+  [data-radix-portal] [data-radix-dropdown-menu-item],
+  [data-radix-portal] [data-radix-context-menu-item],
+  [data-radix-portal] [role="menuitem"],
+  [data-radix-portal] button,
+  [data-radix-portal] a,
+  [data-radix-portal] [data-logout-button],
+  [data-logout-button] {
+    cursor: none !important;
+  }
+
+  /* Ensure child elements in portals don't block events */
+  [data-radix-portal] [data-radix-dropdown-menu-item] *,
+  [data-radix-portal] [data-radix-context-menu-item] *,
+  [data-radix-portal] [role="menuitem"] *,
+  [data-logout-button] *,
+  [data-logout-button] svg,
+  [data-logout-button] span {
+    pointer-events: none !important;
+    cursor: none !important;
+  }
+
+  /* Allow events on menu elements themselves */
+  [data-radix-portal] [data-radix-dropdown-menu-item],
+  [data-radix-portal] [data-radix-context-menu-item],
+  [data-radix-portal] [role="menuitem"],
+  [data-logout-button] {
+    pointer-events: auto !important;
+  }
+
+  /* Specific rules for elements with data-radix-collection-item */
+  [data-radix-collection-item] {
+    cursor: none !important;
+    pointer-events: auto !important;
+  }
+
+  [data-radix-collection-item] * {
+    pointer-events: none !important;
+    cursor: none !important;
+  }
+
+  /* Tailwind UI components */
+  .btn,
+  .button,
+  [class*="btn-"],
+  [class*="button-"] {
+    cursor: none !important;
+  }
+
+  /* Shadcn UI components */
+  [data-slot="button"],
+  [data-slot="link"],
+  [data-slot="trigger"] {
+    cursor: none !important;
+  }
+}
+
+/* Desktop only - Add cursor-target class to all interactive elements */
+@media (pointer: fine) and (hover: hover) and (min-width: 768px) {
+  button,
+  a,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  input[type="range"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="color"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="number"],
+  select,
+  textarea,
+  form,
+  fieldset,
+  legend,
+  label,
+  optgroup,
+  option,
+  datalist,
+  output,
+  progress,
+  meter,
+  [tabindex]:not([tabindex="-1"]),
+  [onclick],
+  [data-radix-collection-item],
+  [data-radix-select-item],
+  [data-radix-dropdown-menu-item],
+  [data-radix-context-menu-item],
+  [data-radix-menubar-item],
+  [data-radix-navigation-menu-item],
+  [data-radix-trigger],
+  [data-radix-popover-trigger],
+  [data-radix-dialog-trigger],
+  [data-radix-accordion-trigger],
+  [data-radix-tabs-trigger],
+  [data-radix-tooltip-trigger],
+  [data-radix-hover-card-trigger],
+  [data-radix-dropdown-menu-trigger],
+  [data-radix-context-menu-trigger],
+  [data-radix-menubar-trigger],
+  [data-radix-navigation-menu-trigger],
+  .btn,
+  .button,
+  [class*="btn-"],
+  [class*="button-"],
+  [data-slot="button"],
+  [data-slot="link"],
+  [data-slot="trigger"],
+  [data-slot="input"],
+  [data-slot="select"],
+  [data-slot="textarea"],
+  [data-slot="form"],
+  [aria-expanded],
+  [aria-haspopup],
+  [aria-controls],
+  [aria-selected],
+  [aria-checked],
+  [aria-pressed],
+  [contenteditable],
+  [draggable="true"],
+  summary,
+  label[for] {
+    cursor: none !important;
+  }
+}
+
+/* Cursor Glow Animation */
+@keyframes cursorGlow {
+    0% {
+        filter: brightness(1) contrast(1);
+    }
+    100% {
+        filter: brightness(1.2) contrast(1.1);
+    }
+}
+
+/* Apply glow animation to cursor elements */
+.target-cursor-corner {
+    animation: cursorGlow 2s ease-in-out infinite alternate !important;
+}
+
+/* Force cursor styles */
+.target-cursor-corner {
+    border-color: white !important;
+    filter: 
+        drop-shadow(0 0 2px rgba(255, 255, 255, 0.9)) 
+        drop-shadow(0 0 4px rgba(255, 255, 255, 0.9)) 
+        drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
+        drop-shadow(0 0 2px rgba(0, 0, 0, 0.8)) 
+        drop-shadow(0 0 4px rgba(0, 0, 0, 0.8)) 
+        drop-shadow(0 0 8px rgba(0, 0, 0, 0.8)) !important;
+}
+
+/* Force center dot styles */
+.target-cursor-dot {
+    background-color: white !important;
+    box-shadow: 
+        0 0 4px rgba(255, 255, 255, 0.9), 
+        0 0 8px rgba(255, 255, 255, 0.9), 
+        0 0 16px rgba(255, 255, 255, 0.9),
+        0 0 4px rgba(0, 0, 0, 0.8), 
+        0 0 8px rgba(0, 0, 0, 0.8), 
+        0 0 16px rgba(0, 0, 0, 0.8) !important;
+}

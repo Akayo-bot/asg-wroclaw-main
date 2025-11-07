@@ -1,0 +1,31 @@
+{
+    "mcpServers": {
+        "shadcn": {
+            "command": "npx",
+            "args": [
+                "shadcn@latest",
+                "mcp"
+            ]
+        },
+        "chrome-devtools": {
+            "command": "npx",
+            "args": [
+                "chrome-devtools-mcp@latest"
+            ]
+        },
+        "browser": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-browser"
+            ]
+        },
+        "cursor-browser": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@cursor/browser-extension-mcp"
+            ]
+        }
+    }
+}
