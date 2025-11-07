@@ -13,6 +13,7 @@ import RoleChangeHistory from '@/components/admin/RoleChangeHistory';
 import { RolePill } from '@/components/admin/RolePill';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import UserProfileModal from '@/components/admin/UserProfileModal';
+import { logActivity } from '@/utils/activityLogger';
 
 interface UserProfile {
     id: string;
@@ -212,6 +213,17 @@ const RoleManager = () => {
 
             const result = data as any;
             if (result.success) {
+                // Получаем информацию о пользователе для логирования
+                const targetUser = users.find(u => u.id === targetUserId);
+                const oldRole = targetUser?.role || 'unknown';
+                
+                // Логируем изменение роли
+                await logActivity('ROLE_UPDATE', {
+                    targetUser: targetUser?.display_name || targetUserId,
+                    oldRole: oldRole,
+                    newRole: targetRole,
+                });
+                
                 toast({
                     title: 'Success',
                     description: `Role updated to ${getRoleDisplayName(targetRole)}`
@@ -274,6 +286,11 @@ const RoleManager = () => {
                 throw new Error(data?.error || `Помилка ${response.status}: ${response.statusText}`);
             }
 
+            // Логируем разбан пользователя
+            await logActivity('USER_UNBAN', {
+                targetUser: targetUser.display_name || targetUserId,
+            });
+            
             toast({ title: 'Success', description: data.message || 'Користувач розблокований.' });
             fetchUsers();
             fetchRoleChanges();
@@ -321,6 +338,12 @@ const RoleManager = () => {
 
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Не вдалося забанити користувача');
+
+            // Логируем бан пользователя
+            await logActivity('USER_BAN', {
+                targetUser: targetUser?.display_name || targetUserId,
+                reason: reason || 'Причина не вказана',
+            });
 
             toast({ title: 'Success', description: 'Користувач заблокований.' });
             fetchUsers();

@@ -92,21 +92,21 @@ function slugifyLocal(input: string) {
         .replace(/-+/g, "-");
 }
 
-// Admin panel style
+// Admin panel style (новая цветовая палитра - как в RoleManager)
 const adminCardStyle =
-    "relative overflow-hidden rounded-xl pointer-events-auto touch-auto transform-gpu bg-[#121816]/90 backdrop-blur ring-1 ring-emerald-400/25 animate-fade-in";
+    "relative overflow-hidden rounded-xl pointer-events-auto touch-auto transform-gpu border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-sm shadow-[0_0_25px_rgba(70,214,200,0.1)] animate-fade-in";
 
 const adminCardContent = "relative z-10 p-3 sm:p-4";
 
 const glass =
-    "backdrop-blur-md bg-[#0c1111]/60 border border-white/12 " +
-    "shadow-[0_0_0_1px_rgba(255,255,255,0.05)] hover:bg-white/8 transition-colors";
+    "backdrop-blur-md bg-[#04070A]/80 border border-white/10 " +
+    "shadow-[0_0_0_1px_rgba(255,255,255,0.05)] hover:bg-white/10 hover:border-[#46D6C8]/20 transition-colors";
 
 const glassInput =
-    "cursor-target w-full rounded-xl text-emerald-50 px-3 py-2 outline-none transition-all duration-300 ease-out placeholder:text-emerald-300/40 " +
-    "bg-[#0b0f0e]/40 border border-emerald-500/20 " +
-    "hover:border-emerald-400/50 hover:bg-[#0f1513]/60 hover:shadow-[0_0_6px_rgba(0,255,180,0.3)] " +
-    "focus:border-emerald-400 focus:bg-[#0f1513]/80 focus:shadow-[0_0_10px_rgba(0,255,180,0.45)] focus:outline-none";
+    "cursor-target w-full rounded-xl text-white px-3 py-2 outline-none transition-all duration-300 ease-out placeholder:text-gray-400 " +
+    "bg-black/40 border border-white/10 " +
+    "hover:border-[#46D6C8]/30 hover:bg-black/50 hover:shadow-[0_0_6px_rgba(70,214,200,0.3)] " +
+    "focus:ring-2 focus:ring-[#46D6C8] focus:border-[#46D6C8] focus:bg-black/60 focus:shadow-[0_0_10px_rgba(70,214,200,0.45)] focus:outline-none";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // IconButtonTip - универсальная обёртка для иконок с подсказкой
@@ -153,11 +153,11 @@ function IconButtonTip({
                     className={`
                         inline-flex h-8 items-center justify-center rounded-lg px-2 
                         border transition-all cursor-target
-                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40
+                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#46D6C8]/40
                         disabled:opacity-50 disabled:cursor-not-allowed
                         ${isActive 
-                            ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300" 
-                            : "border-emerald-500/25 bg-[#0e1513]/60 text-emerald-100/90 hover:bg-[#121b18] hover:border-emerald-400/45"
+                            ? "bg-[#46D6C8]/20 border-[#46D6C8]/40 text-[#46D6C8]" 
+                            : "border-white/10 bg-black/30 text-gray-400 hover:bg-white/10 hover:border-[#46D6C8]/30 hover:text-[#46D6C8]"
                         }
                         ${className ?? ""}
                     `}
@@ -167,12 +167,12 @@ function IconButtonTip({
             </TooltipTrigger>
             <TooltipContent
                 side="top"
-                className="select-none bg-[#0b0f0e] text-emerald-100 border border-emerald-400/30 shadow-[0_0_20px_rgba(0,255,180,.15)]"
+                className="select-none bg-[#04070A]/80 text-white border border-[#46D6C8]/30 shadow-[0_0_20px_rgba(70,214,200,.15)]"
             >
                 <div className="flex items-center gap-2">
                     <span>{label}</span>
                     {kbd && (
-                        <kbd className="rounded bg-black/40 px-1.5 py-0.5 text-[11px] leading-none text-emerald-200/80 border border-emerald-400/20">
+                        <kbd className="rounded bg-black/40 px-1.5 py-0.5 text-[11px] leading-none text-[#46D6C8]/80 border border-[#46D6C8]/20">
                             {kbd}
                         </kbd>
                     )}
@@ -929,7 +929,7 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
     return (
         <div className="space-y-3">
             <TooltipProvider delayDuration={120}>
-                <div className="flex flex-wrap gap-1 rounded-xl border border-emerald-400/20 bg-[rgba(21,27,25,0.9)] backdrop-blur-sm p-1 ring-1 ring-emerald-400/10">
+                <div className="flex flex-wrap gap-1 rounded-xl border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-sm p-1 ring-1 ring-[#46D6C8]/10">
                 <IconButtonTip 
                     label="Жирний" 
                     kbd="Ctrl/⌘ + B" 
@@ -965,7 +965,7 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
                     <Strikethrough className="h-4 w-4" />
                 </IconButtonTip>
 
-                <div className="mx-1 h-6 w-px bg-emerald-400/20" />
+                <div className="mx-1 h-6 w-px bg-[#46D6C8]/20" />
 
                 <IconButtonTip 
                     label="Заголовок H1" 
@@ -997,7 +997,7 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
                     <Quote className="h-4 w-4" />
                 </IconButtonTip>
 
-                <div className="mx-1 h-6 w-px bg-emerald-400/20" />
+                <div className="mx-1 h-6 w-px bg-[#46D6C8]/20" />
 
                 <IconButtonTip 
                     label="Маркований список" 
@@ -1037,7 +1037,7 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
 
                 {/* Кнопку добавления изображения из тулбара удалили по требованию */}
 
-                <div className="mx-1 h-6 w-px bg-emerald-400/20" />
+                <div className="mx-1 h-6 w-px bg-[#46D6C8]/20" />
 
                 <IconButtonTip 
                     label="Скасувати" 
@@ -1055,7 +1055,7 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
                     <Redo className="h-4 w-4" />
                 </IconButtonTip>
 
-                <div className="mx-1 h-6 w-px bg-emerald-400/20" />
+                <div className="mx-1 h-6 w-px bg-[#46D6C8]/20" />
 
                 <IconButtonTip 
                     label="Параграф" 
@@ -1207,7 +1207,7 @@ function DateTimeField({
                     selected={selected}
                     onSelect={handleSelect}
                     disabled={disabled}
-                    className="rounded-xl border border-white/12 bg-[#0c1111]/90 p-3 shadow-[0_0_24px_rgba(16,185,129,0.15)]"
+                    className="rounded-xl border border-white/10 bg-[#04070A]/80 p-3 shadow-[0_0_24px_rgba(70,214,200,0.15)]"
                 />
                 <div className="flex items-center gap-2">
                     <Input
@@ -1217,8 +1217,8 @@ function DateTimeField({
                         disabled={disabled}
                         className={`
               ${glass} h-9 w-32
-              hover:shadow-[0_0_14px_rgba(16,185,129,0.18)]
-              focus:border-emerald-400 focus:shadow-[0_0_18px_rgba(16,185,129,0.30)]
+              hover:shadow-[0_0_14px_rgba(70,214,200,0.18)]
+              focus:border-[#46D6C8] focus:shadow-[0_0_18px_rgba(70,214,200,0.30)]
               ${error ? "border-rose-500/70 shadow-[0_0_20px_rgba(244,63,94,0.35)]" : ""}
             `}
                     />
@@ -1230,10 +1230,10 @@ function DateTimeField({
                         }}
                         disabled={disabled}
                     >
-                        <SelectTrigger className={`${glass} h-9 w-24 border-emerald-400/30 ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-target"}`}>
+                        <SelectTrigger className={`${glass} h-9 w-24 border-[#46D6C8]/30 ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-target"}`}>
                             <SelectValue placeholder="Години" />
                         </SelectTrigger>
-                        <SelectContent className="backdrop-blur bg-slate-900/95 border border-white/12 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+                        <SelectContent className="backdrop-blur bg-[#04070A]/80 border border-white/10 shadow-[0_0_40px_rgba(70,214,200,0.15)]">
                             <SelectItem value="auto" className="cursor-target">Авто</SelectItem>
                             <SelectItem value="24" className="cursor-target">24h</SelectItem>
                             <SelectItem value="12" className="cursor-target">12h</SelectItem>
@@ -1245,10 +1245,10 @@ function DateTimeField({
                 type="button"
                 variant="outline"
                 disabled={disabled}
-                className={`${glass} h-9 w-9 p-0 hover:shadow-[0_0_16px_rgba(16,185,129,0.35)] group cursor-target ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`${glass} h-9 w-9 p-0 hover:shadow-[0_0_16px_rgba(70,214,200,0.35)] group cursor-target ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
                 aria-label="Вибрати дату"
             >
-                <Calendar className="h-4 w-4 text-emerald-300 transition-transform duration-200 group-hover:scale-110" />
+                <Calendar className="h-4 w-4 text-[#46D6C8] transition-transform duration-200 group-hover:scale-110" />
             </Button>
             {error && <span className="absolute -top-5 left-2 text-sm text-rose-400">{error}</span>}
         </div>
@@ -1299,12 +1299,12 @@ function TimeWheel({
     // плавная подсветка выбранного
     return (
         <div className={`select-none ${className}`}>
-            <div className="text-[11px] mb-1 text-emerald-300/60">{label}</div>
+            <div className="text-[11px] mb-1 text-[#46D6C8]/60">{label}</div>
             <div 
                 ref={scrollRef}
                 className="relative h-36 w-full overflow-y-auto
-                            rsf-wheel border border-emerald-400/20 rounded-xl
-                            bg-[#0f1513]/80 pl-1 pr-2">
+                            rsf-wheel border border-[#46D6C8]/20 rounded-xl
+                            bg-black/40 pl-1 pr-2">
                 <ul className="py-2">
                     {items.map((n) => {
                         const active = n === value;
@@ -1322,8 +1322,8 @@ function TimeWheel({
                                     className={`w-full h-8 flex items-center justify-center rounded-md mx-1
                                                 transition-all duration-200
                                                 ${active
-                                            ? "text-emerald-100 font-semibold bg-emerald-500/15 ring-1 ring-emerald-400/40"
-                                            : "text-emerald-200/80 hover:bg-white/5 hover:text-emerald-100"}`}
+                                            ? "text-[#46D6C8] font-semibold bg-[#46D6C8]/20 ring-1 ring-[#46D6C8]/40"
+                                            : "text-gray-400 hover:bg-white/5 hover:text-[#46D6C8]"}`}
                                 >
                                     {pad ? String(n).padStart(2, "0") : n}
                                 </button>
@@ -1376,7 +1376,7 @@ export default function ArticleEditorModern({
     // Category types
     type CategoryKey = "news" | "tactics" | "equipment" | "game_reports" | "rules";
     const CATEGORY_STYLES = {
-        news: { fg: "text-emerald-300", bg: "bg-emerald-500/15", ring: "ring-emerald-400/30", dot: "bg-emerald-400" },
+        news: { fg: "text-[#46D6C8]", bg: "bg-[#46D6C8]/20", ring: "ring-[#46D6C8]/40", dot: "bg-[#46D6C8]" },
         tactics: { fg: "text-sky-300", bg: "bg-sky-500/15", ring: "ring-sky-400/30", dot: "bg-sky-400" },
         equipment: { fg: "text-violet-300", bg: "bg-violet-500/15", ring: "ring-violet-400/30", dot: "bg-violet-400" },
         game_reports: { fg: "text-rose-300", bg: "bg-rose-500/15", ring: "ring-rose-400/30", dot: "bg-rose-400" },
@@ -1940,8 +1940,8 @@ export default function ArticleEditorModern({
 
     // Мемоизируем filterColors для предотвращения пересоздания компонента
     const bodyIconFilterColors = useMemo(() => ({
-        primary: "#10b981", // emerald-500
-        secondary: "#34d399", // emerald-400
+        primary: "#46D6C8", // Teal
+        secondary: "#46D6C8", // Teal
     }), []);
 
     useEffect(() => {
@@ -1996,7 +1996,7 @@ export default function ArticleEditorModern({
                 ? "Коротко (додай деталей)"
                 : "Задовге (скороти)";
     const metaColor =
-        metaStatus === "optimal" ? "text-emerald-400" : metaStatus === "short" ? "text-amber-400" : "text-rose-400";
+        metaStatus === "optimal" ? "text-[#46D6C8]" : metaStatus === "short" ? "text-amber-400" : "text-rose-400";
 
     const normalizeSlug = () => {
         console.log("Нормалізація. Заголовок:", title);
@@ -2303,20 +2303,20 @@ export default function ArticleEditorModern({
                         disabled={isUploading || !hasChanges}
                         className={`
                             group relative h-11 sm:h-9 px-4 sm:px-4 rounded-xl font-medium
-                            bg-[#0b1110]/80 text-emerald-50
-                            ring-1 ring-emerald-400/25
+                            bg-black/30 text-gray-400
+                            ring-1 ring-white/10
                             shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]
                             transition-all duration-200
-                            hover:bg-[#0f1715]/90
-                            hover:shadow-[0_0_14px_rgba(0,255,180,0.25)]
-                            hover:ring-emerald-400/50
-                            focus-visible:ring-2 focus-visible:ring-emerald-400/40
+                            hover:bg-white/10 hover:text-white
+                            hover:shadow-[0_0_14px_rgba(70,214,200,0.25)]
+                            hover:ring-[#46D6C8]/30
+                            focus-visible:ring-2 focus-visible:ring-[#46D6C8]/40
                             active:scale-[0.98]
                             disabled:opacity-60 disabled:cursor-not-allowed
                             cursor-target flex-1 sm:flex-initial
                         `}
                     >
-                        <Save className="h-5 w-5 sm:h-4 sm:w-4 mr-2 text-emerald-300 group-hover:text-emerald-200 transition-all duration-300 group-hover:translate-y-[2px] group-hover:scale-110 group-active:translate-y-[3px] group-active:scale-100" />
+                        <Save className="h-5 w-5 sm:h-4 sm:w-4 mr-2 text-[#46D6C8] group-hover:text-[#46D6C8] transition-all duration-300 group-hover:translate-y-[2px] group-hover:scale-110 group-active:translate-y-[3px] group-active:scale-100" />
                         <span className="text-sm sm:text-base">Зберегти чернетку</span>
                     </Button>
                     <Button
@@ -2343,7 +2343,7 @@ export default function ArticleEditorModern({
                     <div
                         className={`
               sm:ml-auto relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 rounded-xl px-3 sm:px-3 py-2 sm:py-1.5 w-full sm:w-auto
-              ${scheduleEnabled ? 'ring-1 ring-emerald-400/40 shadow-[0_0_18px_rgba(0,255,180,0.18)]' : ''}
+              ${scheduleEnabled ? 'ring-1 ring-[#46D6C8]/40 shadow-[0_0_18px_rgba(70,214,200,0.18)]' : ''}
               ${!scheduleEnabled ? 'opacity-80' : ''}
               bg-white/5 border border-white/10
             `}
@@ -2363,7 +2363,7 @@ export default function ArticleEditorModern({
                                     style={{ opacity: 0.78 - overallProgress(scheduleText, effective12h) * 0.58 }}
                                 >
                                     {effective12h ? (
-                                        <div className="flex items-center text-emerald-200/65 drop-shadow-[0_0_6px_rgba(16,185,129,0.25)] whitespace-pre">
+                                        <div className="flex items-center text-[#46D6C8]/65 drop-shadow-[0_0_6px_rgba(70,214,200,0.25)] whitespace-pre">
                                             <span style={{ opacity: 1 - segmentProgress(scheduleText, true).MM }}>MM</span>
                                             <span>/</span>
                                             <span style={{ opacity: 1 - segmentProgress(scheduleText, true).DD }}>DD</span>
@@ -2377,7 +2377,7 @@ export default function ArticleEditorModern({
                                             <span style={{ opacity: 1 - segmentProgress(scheduleText, true).AMPM }}>AM/PM</span>
                                         </div>
                                     ) : (
-                                        <div className="flex items-center text-emerald-200/65 drop-shadow-[0_0_6px_rgba(16,185,129,0.25)] whitespace-pre">
+                                        <div className="flex items-center text-[#46D6C8]/65 drop-shadow-[0_0_6px_rgba(70,214,200,0.25)] whitespace-pre">
                                             <span style={{ opacity: 1 - segmentProgress(scheduleText, false).DD }}>дд</span>
                                             <span>.</span>
                                             <span style={{ opacity: 1 - segmentProgress(scheduleText, false).MM }}>мм</span>
@@ -2408,11 +2408,11 @@ export default function ArticleEditorModern({
                                 onFocus={() => setIsInputFocused(true)}
                                 placeholder=""
                                 className={`
-                  ${glass} !bg-transparent !backdrop-blur-0 relative z-[60] text-emerald-50 h-10 sm:h-9 w-full sm:w-64 md:w-80 font-mono tracking-wider text-sm sm:text-base
+                  ${glass} !bg-transparent !backdrop-blur-0 relative z-[60] text-white h-10 sm:h-9 w-full sm:w-64 md:w-80 font-mono tracking-wider text-sm sm:text-base
                   focus-visible:ring-0 focus:outline-none
-                  border-emerald-400/30
-                  hover:shadow-[0_0_12px_rgba(0,255,180,0.15)]
-                  focus:border-emerald-400 focus:shadow-[0_0_16px_rgba(0,255,180,0.28)]
+                  border-[#46D6C8]/30
+                  hover:shadow-[0_0_12px_rgba(70,214,200,0.15)]
+                  focus:border-[#46D6C8] focus:shadow-[0_0_16px_rgba(70,214,200,0.28)]
                   ${scheduleEnabled && !schedule && !scheduleInputError ? 'border-amber-400/70 shadow-[0_0_16px_rgba(245,158,11,0.35)]' : ''}
                   ${scheduleInputError ? '!border-rose-500/70 !shadow-[0_0_16px_rgba(244,63,94,0.35)]' : ''}
                 `}
@@ -2424,7 +2424,7 @@ export default function ArticleEditorModern({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className={`${glass} h-9 w-9 p-0 hover:shadow-[0_0_16px_rgba(0,255,180,0.35)] group cursor-target relative overflow-visible active:scale-90 transition-transform duration-150`}
+                                    className={`${glass} h-9 w-9 p-0 hover:shadow-[0_0_16px_rgba(70,214,200,0.35)] group cursor-target relative overflow-visible active:scale-90 transition-transform duration-150`}
                                     disabled={!scheduleEnabled}
                                     aria-label="Вибрати дату"
                                     onMouseEnter={() => setIsButtonHovering(true)}
@@ -2445,7 +2445,7 @@ export default function ArticleEditorModern({
                                             height={20}
                                             strokeWidth={2}
                                             stroke="currentColor"
-                                            className="w-5 h-5 text-white transition-colors duration-300 group-hover:text-emerald-400"
+                                            className="w-5 h-5 text-white transition-colors duration-300 group-hover:text-[#46D6C8]"
                                             triggerAnimation={calendarAnimationTrigger}
                                             isHoveringExternal={isButtonHovering}
                                             isFocused={isInputFocused}
@@ -2455,7 +2455,7 @@ export default function ArticleEditorModern({
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent
-                                className="w-auto p-0 bg-[#0b0f0e]/95 backdrop-blur border border-emerald-400/20 rounded-2xl shadow-[0_0_40px_rgba(0,255,180,0.12)]"
+                                className="w-auto p-0 bg-[#04070A]/80 backdrop-blur border border-[#46D6C8]/20 rounded-2xl shadow-[0_0_40px_rgba(70,214,200,0.12)]"
                                 align="end"
                                 side="bottom"
                                 sideOffset={10}
@@ -2505,7 +2505,7 @@ export default function ArticleEditorModern({
 
                                     {/* Время / 12–24h */}
                                     <div className="px-3 md:px-4 pb-4 flex flex-col gap-3 md:gap-4">
-                                        <div className="text-xs text-emerald-300/70 pt-3 md:pt-4">
+                                        <div className="text-xs text-[#46D6C8]/70 pt-3 md:pt-4">
                                             Час публікації
                                         </div>
 
@@ -2542,7 +2542,7 @@ export default function ArticleEditorModern({
                                                 className="w-24"
                                                 key={effective12h ? `hours-12h-${schedule}` : `hours-24h-${schedule}`}
                                             />
-                                            <div className="pb-8 text-emerald-300/70">:</div>
+                                            <div className="pb-8 text-[#46D6C8]/70">:</div>
                                             <TimeWheel
                                                 label="Хвилини"
                                                 value={schedule ? new Date(schedule).getMinutes() : undefined}
@@ -2561,8 +2561,8 @@ export default function ArticleEditorModern({
                                             {/* AM/PM для 12h */}
                                             {effective12h && (
                                                 <div className="flex flex-col items-start">
-                                                    <div className="text-[11px] mb-1 text-emerald-300/60">АМ/РМ</div>
-                                                    <div className="inline-flex rounded-xl overflow-hidden ring-1 ring-emerald-400/20">
+                                                    <div className="text-[11px] mb-1 text-[#46D6C8]/60">АМ/РМ</div>
+                                                    <div className="inline-flex rounded-xl overflow-hidden ring-1 ring-[#46D6C8]/20">
                                                         {(["AM", "PM"] as const).map((p) => {
                                                             const curH = schedule ? new Date(schedule).getHours() : 0;
                                                             const active = (p === "AM" && curH < 12) || (p === "PM" && curH >= 12);
@@ -2580,8 +2580,8 @@ export default function ArticleEditorModern({
                                                                     }}
                                                                     className={`px-3 py-2 text-sm transition
                                                                       ${active
-                                                                            ? "bg-emerald-500/20 text-emerald-100"
-                                                                            : "bg-white/5 text-emerald-200/80 hover:bg-white/8"}
+                                                                            ? "bg-[#46D6C8]/20 text-[#46D6C8]"
+                                                                            : "bg-white/5 text-gray-400 hover:bg-white/8 hover:text-[#46D6C8]"}
                                                                     `}
                                                                 >
                                                                     {p}
@@ -2642,7 +2642,7 @@ export default function ArticleEditorModern({
                             onValueChange={(v) => setTimeFormatMode(v as "auto" | "12" | "24")}
                             disabled={!scheduleEnabled}
                         >
-                            <SelectTrigger className={`${glass} h-10 sm:h-9 w-full sm:w-24 border-emerald-400/30 text-sm sm:text-base ${!scheduleEnabled ? "opacity-50 cursor-not-allowed" : "cursor-target"}`}>
+                            <SelectTrigger className={`${glass} h-10 sm:h-9 w-full sm:w-24 border-[#46D6C8]/30 text-sm sm:text-base ${!scheduleEnabled ? "opacity-50 cursor-not-allowed" : "cursor-target"}`}>
                                 <SelectValue placeholder="Години">
                                     {timeFormatMode === "auto"
                                         ? (effective12h ? "12h (Авто)" : "24h (Авто)")
@@ -2651,7 +2651,7 @@ export default function ArticleEditorModern({
                                             : "24h"}
                                 </SelectValue>
                             </SelectTrigger>
-                            <SelectContent className="backdrop-blur bg-slate-900/95 border border-white/12 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+                            <SelectContent className="backdrop-blur bg-[#04070A]/80 border border-white/10 shadow-[0_0_40px_rgba(70,214,200,0.15)]">
                                 <SelectItem value="auto" className="cursor-target">
                                     Авто {effective12h ? "(12h)" : "(24h)"}
                                 </SelectItem>
@@ -2690,7 +2690,7 @@ export default function ArticleEditorModern({
                         <section className={adminCardStyle}>
                             <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
                             <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-emerald-400/10 pb-0.5 mb-3">
+                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-3">
                                     <div className="relative h-12 w-12 flex items-center justify-center overflow-visible" style={{ minWidth: '3rem', minHeight: '3rem' }}>
                                         <OptimizedLottie
                                             src="/lottie/Address-Book.json"
@@ -2699,7 +2699,7 @@ export default function ArticleEditorModern({
                                             loop={isTitleFocused}
                                         />
                                     </div>
-                                    <h3 className="text-[16px] font-semibold text-emerald-100">Заголовок статті</h3>
+                                    <h3 className="text-[16px] font-semibold text-white">Заголовок статті</h3>
                                 </header>
                                 <Input
                                     value={title}
@@ -2716,7 +2716,7 @@ export default function ArticleEditorModern({
                                             const activeElement = document.activeElement as HTMLElement;
                                             
                                             // Если фокус перешел на кнопку панели инструментов редактора, не сбрасываем
-                                            const toolbarDiv = document.querySelector('.flex.flex-wrap.gap-1.rounded-xl.border.border-emerald-400\\/20');
+                                            const toolbarDiv = document.querySelector('.flex.flex-wrap.gap-1.rounded-xl.border');
                                             const isToolbarButton = toolbarDiv?.contains(activeElement) || false;
                                             
                                             // Проверяем, не перешел ли фокус на другое поле формы
@@ -2743,7 +2743,7 @@ export default function ArticleEditorModern({
                         <section className={adminCardStyle}>
                             <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
                             <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-emerald-400/10 pb-0.5 mb-3">
+                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-3">
                                     <div className="relative h-9 w-9 flex items-center justify-center">
                                         <OptimizedLottie
                                             src="/lottie/Book.json"
@@ -2752,7 +2752,7 @@ export default function ArticleEditorModern({
                                             loop={isPreviewFocused}
                                         />
                                     </div>
-                                    <h3 className="text-[16px] font-semibold text-emerald-100">Превʼю / Короткий опис</h3>
+                                    <h3 className="text-[16px] font-semibold text-white">Превʼю / Короткий опис</h3>
                                 </header>
                                 <Textarea
                                     value={preview}
@@ -2769,7 +2769,7 @@ export default function ArticleEditorModern({
                                             const activeElement = document.activeElement as HTMLElement;
                                             
                                             // Если фокус перешел на кнопку панели инструментов редактора, не сбрасываем
-                                            const toolbarDiv = document.querySelector('.flex.flex-wrap.gap-1.rounded-xl.border.border-emerald-400\\/20');
+                                            const toolbarDiv = document.querySelector('.flex.flex-wrap.gap-1.rounded-xl.border');
                                             const isToolbarButton = toolbarDiv?.contains(activeElement) || false;
                                             
                                             // Проверяем, не перешел ли фокус на другое поле формы
@@ -2797,7 +2797,7 @@ export default function ArticleEditorModern({
                         <section className={adminCardStyle}>
                             <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
                             <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-emerald-400/10 pb-0.5 mb-3">
+                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-3">
                                     <div className="relative h-6 w-6 flex items-center justify-center">
                                         <OptimizedLottie
                                             key="body-icon"
@@ -2808,7 +2808,7 @@ export default function ArticleEditorModern({
                                             filterColors={bodyIconFilterColors}
                                         />
                                     </div>
-                                    <h3 className="text-[16px] font-semibold text-emerald-100">Основний текст</h3>
+                                    <h3 className="text-[16px] font-semibold text-white">Основний текст</h3>
                                 </header>
                                 <div className={`${formErrors.content ? 'ring-1 ring-rose-500/70 rounded-xl p-1 -m-1' : ''}`}>
                                 <RichTextEditor
@@ -2826,7 +2826,7 @@ export default function ArticleEditorModern({
                                 {formErrors.content && (
                                     <p className="mt-2 text-xs text-rose-400">{formErrors.content}</p>
                                 )}
-                                <p className="mt-3 text-xs text-emerald-300/60">
+                                <p className="mt-3 text-xs text-[#46D6C8]/60">
                                     💡 Підказка: виділіть текст і натискайте кнопки над редактором (жирний, курсив, заголовки, списки, цитата, посилання тощо).
                                 </p>
                             </div>
@@ -2836,22 +2836,22 @@ export default function ArticleEditorModern({
                         <section className={adminCardStyle}>
                             <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
                             <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-emerald-400/10 pb-0.5 mb-1.5">
-                                    <Image className="h-4 w-4 text-emerald-300/80" />
-                                    <h3 className="text-[16px] font-semibold text-emerald-100">Головне зображення</h3>
+                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
+                                    <Image className="h-4 w-4 text-[#46D6C8]/80" />
+                                    <h3 className="text-[16px] font-semibold text-white">Головне зображення</h3>
                                 </header>
-                                <div className={`rounded-xl p-4 bg-[#151b19] ring-1 ${formErrors.image ? '!ring-rose-500/70' : 'ring-emerald-400/15'} relative`}>
+                                <div className={`rounded-xl p-4 bg-black/40 ring-1 ${formErrors.image ? '!ring-rose-500/70' : 'ring-[#46D6C8]/20'} relative`}>
                                     {mainImageUrl ? (
                                         <div className="relative group">
                                             {isUploading && (
                                                 <div className="absolute inset-0 z-20 rounded-xl bg-black/60 grid place-items-center">
-                                                    <span className="text-emerald-100 text-sm animate-pulse">Завантаження...</span>
+                                                    <span className="text-[#46D6C8] text-sm animate-pulse">Завантаження...</span>
                                                 </div>
                                             )}
                                             <img
                                                 src={mainImageUrl}
                                                 alt="Main"
-                                                className="w-full max-h-64 rounded-xl object-contain ring-1 ring-emerald-400/20 group-hover:ring-emerald-400/40 transition-all"
+                                                className="w-full max-h-64 rounded-xl object-contain ring-1 ring-[#46D6C8]/20 group-hover:ring-[#46D6C8]/40 transition-all"
                                             />
                                             <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
                                                 <button
@@ -2859,7 +2859,7 @@ export default function ArticleEditorModern({
                                                         if (mainImageUrl) await removeMediaByPublicUrl(mainImageUrl);
                                                         setMainImageUrl(undefined);
                                                     }}
-                                                    className="flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 rounded-lg bg-neutral-900/70 text-neutral-200 ring-1 ring-emerald-400/25 hover:bg-neutral-900 hover:ring-emerald-400/45 transition cursor-target text-sm sm:text-base"
+                                                    className="flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 rounded-lg bg-neutral-900/70 text-neutral-200 ring-1 ring-[#46D6C8]/25 hover:bg-neutral-900 hover:ring-[#46D6C8]/45 transition cursor-target text-sm sm:text-base"
                                                 >
                                                     <X className="h-4 w-4" />
                                                     Видалити
@@ -2875,7 +2875,7 @@ export default function ArticleEditorModern({
                                                     <button
                                                         type="button"
                                                         onClick={() => document.getElementById('main-image-upload')?.click()}
-                                                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 rounded-lg bg-emerald-500/10 text-emerald-200 ring-1 ring-emerald-400/30 hover:bg-emerald-500/15 hover:ring-emerald-400/50 transition cursor-target text-sm sm:text-base"
+                                                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 rounded-lg bg-[#46D6C8]/20 text-[#46D6C8] ring-1 ring-[#46D6C8]/40 hover:bg-[#46D6C8]/30 hover:ring-[#46D6C8]/50 transition cursor-target text-sm sm:text-base"
                                                     >
                                                         <Upload className="h-4 w-4" />
                                                         Замінити
@@ -2891,8 +2891,8 @@ export default function ArticleEditorModern({
                                             className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 transition-all ${formErrors.image
                                                 ? '!border-rose-500/80 bg-rose-500/5'
                                                 : isDragging
-                                                    ? "border-emerald-400 bg-emerald-500/10 ring-2 ring-emerald-400/30"
-                                                    : "border-emerald-400/30 bg-emerald-500/5 hover:border-emerald-400/50 hover:bg-emerald-500/10"}
+                                                    ? "border-[#46D6C8] bg-[#46D6C8]/20 ring-2 ring-[#46D6C8]/40"
+                                                    : "border-[#46D6C8]/30 bg-[#46D6C8]/10 hover:border-[#46D6C8]/50 hover:bg-[#46D6C8]/20"}
                                             `}
                                         >
                                             <input
@@ -2901,8 +2901,8 @@ export default function ArticleEditorModern({
                                                 className="hidden"
                                                 onChange={(e) => handleMainImagePick(e.target.files?.[0])}
                                             />
-                                            <ImageIcon className={`h-6 w-6 ${isDragging ? "text-emerald-300" : "text-emerald-400/60"}`} />
-                                            <span className="text-sm text-emerald-200/80">
+                                            <ImageIcon className={`h-6 w-6 ${isDragging ? "text-[#46D6C8]" : "text-[#46D6C8]/60"}`} />
+                                            <span className="text-sm text-[#46D6C8]/80">
                                                 {isDragging ? "Відпустіть для завантаження" : "Перетягніть зображення або натисніть для вибору"}
                                             </span>
                                         </label>
@@ -2918,9 +2918,9 @@ export default function ArticleEditorModern({
                         <section className={adminCardStyle}>
                             <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
                             <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-emerald-400/10 pb-0.5 mb-1.5">
-                                    <Image className="h-4 w-4 text-emerald-300/80" />
-                                    <h3 className="text-[16px] font-semibold text-emerald-100">Галерея</h3>
+                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
+                                    <Image className="h-4 w-4 text-[#46D6C8]/80" />
+                                    <h3 className="text-[16px] font-semibold text-white">Галерея</h3>
                                 </header>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4">
                                     <div className="inline-flex items-center">
@@ -2935,13 +2935,13 @@ export default function ArticleEditorModern({
                                         <button
                                             type="button"
                                             onClick={() => galleryInputRef.current?.click()}
-                                            className="flex items-center gap-2 px-3 py-2.5 sm:py-2 rounded-lg bg-emerald-500/10 text-emerald-200 ring-1 ring-emerald-400/30 hover:bg-emerald-500/15 hover:ring-emerald-400/50 transition cursor-target text-sm sm:text-base"
+                                            className="flex items-center gap-2 px-3 py-2.5 sm:py-2 rounded-lg bg-[#46D6C8]/20 text-[#46D6C8] ring-1 ring-[#46D6C8]/40 hover:bg-[#46D6C8]/30 hover:ring-[#46D6C8]/50 transition cursor-target text-sm sm:text-base"
                                         >
                                             <Upload className="h-4 w-4 sm:h-4 sm:w-4" />
                                             Додати зображення
                                         </button>
                                     </div>
-                                    <p className="text-xs sm:text-sm text-emerald-300/60">PNG, JPG, WEBP. Підтримується drag & drop.</p>
+                                    <p className="text-xs sm:text-sm text-[#46D6C8]/60">PNG, JPG, WEBP. Підтримується drag & drop.</p>
                                 </div>
                                 {gallery.length > 0 && (
                                     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
@@ -2950,7 +2950,7 @@ export default function ArticleEditorModern({
                                                 key={i}
                                                 initial={{ opacity: 0, scale: 0.9 }}
                                                 animate={{ opacity: 1, scale: 1 }}
-                                                className="group relative overflow-hidden rounded-xl border border-emerald-400/20 hover:border-emerald-400/40 transition-all"
+                                                className="group relative overflow-hidden rounded-xl border border-[#46D6C8]/20 hover:border-[#46D6C8]/40 transition-all"
                                             >
                                                 <img src={src} alt="gallery" className="h-36 w-full object-cover" />
                                                 <button
@@ -2974,9 +2974,9 @@ export default function ArticleEditorModern({
                         <section className={adminCardStyle}>
                             <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
                             <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-emerald-400/10 pb-0.5 mb-1.5">
-                                    <Settings2 className="h-4 w-4 text-emerald-300/80" />
-                                    <h3 className="text-[16px] font-semibold text-emerald-100">Категорія</h3>
+                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
+                                    <Settings2 className="h-4 w-4 text-[#46D6C8]/80" />
+                                    <h3 className="text-[16px] font-semibold text-white">Категорія</h3>
                                 </header>
                                 <NeonPopoverList
                                     value={category}
@@ -2985,10 +2985,10 @@ export default function ArticleEditorModern({
                                         { id: "news" as CategoryKey, label: "Новини", textColor: "text-rose-400", hoverColor: "rose" },
                                         { id: "tactics" as CategoryKey, label: "Тактика", textColor: "text-violet-400", hoverColor: "violet" },
                                         { id: "equipment" as CategoryKey, label: "Спорядження", textColor: "text-sky-400", hoverColor: "sky" },
-                                        { id: "game_reports" as CategoryKey, label: "Звіти з ігор", textColor: "text-emerald-400", hoverColor: "emerald" },
+                                        { id: "game_reports" as CategoryKey, label: "Звіти з ігор", textColor: "text-[#46D6C8]", hoverColor: "teal" },
                                         { id: "rules" as CategoryKey, label: "Правила", textColor: "text-amber-400", hoverColor: "amber" },
                                     ]) as NeonOption[]}
-                                    color="emerald"
+                                    color="teal"
                                     minW={0}
                                     width={220}
                                 />
@@ -3002,15 +3002,15 @@ export default function ArticleEditorModern({
                         <section className={adminCardStyle}>
                             <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
                             <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-emerald-400/10 pb-0.5 mb-1.5">
-                                    <Settings2 className="h-4 w-4 text-emerald-300/80" />
-                                    <h3 className="text-[16px] font-semibold text-emerald-100">SEO</h3>
+                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
+                                    <Settings2 className="h-4 w-4 text-[#46D6C8]/80" />
+                                    <h3 className="text-[16px] font-semibold text-white">SEO</h3>
                                 </header>
                                 {/* Slug */}
                                 <div className="space-y-3 mb-4">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <FileText className="h-4 w-4 text-emerald-400/70" />
-                                        <Label className="text-sm text-emerald-200/80">Slug</Label>
+                                        <FileText className="h-4 w-4 text-[#46D6C8]/70" />
+                                        <Label className="text-sm text-white">Slug</Label>
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-2">
                                         <Input
@@ -3025,26 +3025,26 @@ export default function ArticleEditorModern({
                                         <button
                                             type="button"
                                             onClick={normalizeSlug}
-                                            className="px-3 py-2.5 sm:py-2 rounded-lg bg-neutral-900/70 text-neutral-200 ring-1 ring-emerald-400/25 hover:bg-neutral-900 hover:ring-emerald-400/45 transition cursor-target text-sm sm:text-base whitespace-nowrap"
+                                            className="px-3 py-2.5 sm:py-2 rounded-lg bg-neutral-900/70 text-neutral-200 ring-1 ring-[#46D6C8]/25 hover:bg-neutral-900 hover:ring-[#46D6C8]/45 transition cursor-target text-sm sm:text-base whitespace-nowrap"
                                         >
                                             Нормалізувати
                                         </button>
                                     </div>
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 text-xs text-emerald-300/60">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 text-xs text-[#46D6C8]/60">
                                         <span className="break-all">
-                                            URL: <span className="text-emerald-200/90">/articles/{slug || "article-slug"}</span>
+                                            URL: <span className="text-[#46D6C8]/90">/articles/{slug || "article-slug"}</span>
                                         </span>
                                         <span className="whitespace-nowrap">Дозволені: a–z, 0–9, дефіси</span>
                                     </div>
                                 </div>
 
-                                <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/25 to-transparent mb-4" />
+                                <div className="h-px bg-gradient-to-r from-transparent via-[#46D6C8]/25 to-transparent mb-4" />
 
                                 {/* Meta Description */}
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <Settings2 className="h-4 w-4 text-emerald-400/70" />
-                                        <Label className="text-sm text-emerald-200/80">Meta Description</Label>
+                                        <Settings2 className="h-4 w-4 text-[#46D6C8]/70" />
+                                        <Label className="text-sm text-white">Meta Description</Label>
                                     </div>
                                     <Textarea
                                         value={meta}
@@ -3061,7 +3061,7 @@ export default function ArticleEditorModern({
                                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5 ring-1 ring-white/10">
                                         <motion.div
                                             className={`h-full ${metaStatus === "optimal"
-                                                ? "bg-emerald-500"
+                                                ? "bg-[#46D6C8]"
                                                 : metaStatus === "short"
                                                     ? "bg-amber-500"
                                                     : "bg-rose-500"
@@ -3074,12 +3074,12 @@ export default function ArticleEditorModern({
                                     <button
                                         type="button"
                                         onClick={generateMeta}
-                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-neutral-900/70 text-neutral-200 ring-1 ring-emerald-400/25 hover:bg-neutral-900 hover:ring-emerald-400/45 transition cursor-target"
+                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-neutral-900/70 text-neutral-200 ring-1 ring-[#46D6C8]/25 hover:bg-neutral-900 hover:ring-[#46D6C8]/45 transition cursor-target"
                                     >
                                         <Sparkles className="h-4 w-4" />
                                         Згенерувати опис
                                     </button>
-                                    <p className="text-xs text-emerald-300/60">
+                                    <p className="text-xs text-[#46D6C8]/60">
                                         💡 Порада: тримай 140–160 символів, уникай лапок та html, додай 1–2 ключових фрази з тексту.
                                     </p>
                                 </div>
@@ -3090,21 +3090,21 @@ export default function ArticleEditorModern({
                         <section className={adminCardStyle}>
                             <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
                             <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-emerald-400/10 pb-0.5 mb-1.5">
-                                    <Film className="h-4 w-4 text-emerald-300/80" />
-                                    <h3 className="text-[16px] font-semibold text-emerald-100">Відео</h3>
+                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
+                                    <Film className="h-4 w-4 text-[#46D6C8]/80" />
+                                    <h3 className="text-[16px] font-semibold text-white">Відео</h3>
                                 </header>
                                 <Tabs value={videoTab} onValueChange={(v) => setVideoTab(v as any)} className="w-full">
-                                    <TabsList className={`${glass} grid w-full grid-cols-2 overflow-hidden shadow-[0_0_20px_rgba(0,255,180,0.12)]`}>
+                                    <TabsList className={`${glass} grid w-full grid-cols-2 overflow-hidden shadow-[0_0_20px_rgba(70,214,200,0.12)]`}>
                                         <TabsTrigger
                                             value="url"
-                                            className="cursor-target transition-colors data-[state=active]:bg-emerald-500/20"
+                                            className="cursor-target transition-colors data-[state=active]:bg-[#46D6C8]/20"
                                         >
                                             URL
                                         </TabsTrigger>
                                         <TabsTrigger
                                             value="file"
-                                            className="cursor-target transition-colors data-[state=active]:bg-emerald-500/20"
+                                            className="cursor-target transition-colors data-[state=active]:bg-[#46D6C8]/20"
                                         >
                                             Файл
                                         </TabsTrigger>
@@ -3117,7 +3117,7 @@ export default function ArticleEditorModern({
                                             className={`${glassInput} focus:glow-focus`}
                                         />
                                         {videoUrl && (
-                                            <div className="mt-4 overflow-hidden rounded-xl border border-emerald-400/20 ring-1 ring-emerald-400/10">
+                                            <div className="mt-4 overflow-hidden rounded-xl border border-[#46D6C8]/20 ring-1 ring-[#46D6C8]/10">
                                                 <iframe
                                                     src={
                                                         videoUrl.includes("youtube.com/watch?v=")
@@ -3135,8 +3135,8 @@ export default function ArticleEditorModern({
                                     <TabsContent value="file" className="mt-4">
                                         <label
                                             className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed p-6 transition-all ${isDragging
-                                                ? "border-emerald-400 bg-emerald-500/10"
-                                                : "border-emerald-400/30 bg-emerald-500/5 hover:border-emerald-400/50 hover:bg-emerald-500/10"
+                                                ? "border-[#46D6C8] bg-[#46D6C8]/20"
+                                                : "border-[#46D6C8]/30 bg-[#46D6C8]/10 hover:border-[#46D6C8]/50 hover:bg-[#46D6C8]/20"
                                                 }`}
                                         >
                                             <input
@@ -3145,14 +3145,14 @@ export default function ArticleEditorModern({
                                                 className="hidden"
                                                 onChange={(e) => handleVideoFilePick(e.target.files?.[0])}
                                             />
-                                            <Upload className="h-4 w-4 text-emerald-400/60" />
-                                            <span className="text-sm text-emerald-200/80">Завантажити відеофайл</span>
+                                            <Upload className="h-4 w-4 text-[#46D6C8]/60" />
+                                            <span className="text-sm text-[#46D6C8]/80">Завантажити відеофайл</span>
                                         </label>
                                         {videoFileUrl && (
                                             <video
                                                 controls
                                                 src={videoFileUrl}
-                                                className="mt-4 w-full rounded-xl border border-emerald-400/20 ring-1 ring-emerald-400/10"
+                                                className="mt-4 w-full rounded-xl border border-[#46D6C8]/20 ring-1 ring-[#46D6C8]/10"
                                             />
                                         )}
                                     </TabsContent>
@@ -3166,10 +3166,10 @@ export default function ArticleEditorModern({
             {/* Loading Overlay */}
             {isUploading && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-[#121816]/90 rounded-xl p-6 ring-1 ring-emerald-400/30 shadow-[0_0_40px_rgba(16,185,129,.3)]">
+                    <div className="bg-[#04070A]/80 rounded-xl p-6 ring-1 ring-[#46D6C8]/30 shadow-[0_0_40px_rgba(70,214,200,.3)]">
                         <div className="flex items-center gap-3">
-                            <div className="h-5 w-5 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
-                            <p className="text-emerald-200 text-sm">Завантаження...</p>
+                            <div className="h-5 w-5 border-2 border-[#46D6C8]/30 border-t-[#46D6C8] rounded-full animate-spin" />
+                            <p className="text-[#46D6C8] text-sm">Завантаження...</p>
                         </div>
                     </div>
                 </div>

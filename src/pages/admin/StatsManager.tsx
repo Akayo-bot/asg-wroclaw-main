@@ -5,7 +5,8 @@ import LoadingScreen from '@/components/LoadingScreen';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { ResponsiveBar } from '@nivo/bar';
+import { ResponsiveLine } from '@nivo/line';
 import { Download, Users, FileText, Image, Calendar, Trophy, Eye, UserCheck, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -170,6 +171,18 @@ const StatsManager = () => {
         { name: t('stats.chart.week4', 'Week 4'), registrations: 25, views: 610 },
     ];
 
+    // Преобразуем данные для Nivo Bar Chart
+    const barData = chartData.map(item => ({
+        week: item.name,
+        registrations: item.registrations,
+    }));
+
+    // Преобразуем данные для Nivo Line Chart
+    const lineData = [{
+        id: 'views',
+        data: chartData.map(item => ({ x: item.name, y: item.views })),
+    }];
+
     if (loading) {
         return <LoadingScreen label="SCANNING TARGETS…" size={140} />;
     }
@@ -291,15 +304,32 @@ const StatsManager = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip />
-                                <Bar dataKey="registrations" fill="hsl(var(--primary))" />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <div style={{ height: '300px' }}>
+                            <ResponsiveBar
+                                data={barData}
+                                keys={['registrations']}
+                                indexBy="week"
+                                margin={{ top: 20, right: 20, bottom: 50, left: 60 }}
+                                padding={0.3}
+                                colors={['hsl(var(--primary))']}
+                                axisTop={null}
+                                axisRight={null}
+                                axisBottom={{
+                                    tickSize: 5,
+                                    tickPadding: 5,
+                                    tickRotation: 0,
+                                }}
+                                axisLeft={{
+                                    tickSize: 5,
+                                    tickPadding: 5,
+                                    tickRotation: 0,
+                                }}
+                                enableGridY={true}
+                                enableLabel={false}
+                                animate={true}
+                                motionConfig="gentle"
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -311,15 +341,39 @@ const StatsManager = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <LineChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip />
-                                <Line type="monotone" dataKey="views" stroke="hsl(var(--primary))" strokeWidth={2} />
-                            </LineChart>
-                        </ResponsiveContainer>
+                        <div style={{ height: '300px' }}>
+                            <ResponsiveLine
+                                data={lineData}
+                                margin={{ top: 20, right: 20, bottom: 50, left: 60 }}
+                                xScale={{ type: 'point' }}
+                                yScale={{ type: 'linear', min: 0, max: 'auto' }}
+                                curve="monotoneX"
+                                axisTop={null}
+                                axisRight={null}
+                                axisBottom={{
+                                    tickSize: 5,
+                                    tickPadding: 5,
+                                    tickRotation: 0,
+                                }}
+                                axisLeft={{
+                                    tickSize: 5,
+                                    tickPadding: 5,
+                                    tickRotation: 0,
+                                }}
+                                enableGridX={false}
+                                enableGridY={true}
+                                enablePoints={true}
+                                pointSize={6}
+                                pointColor="hsl(var(--primary))"
+                                pointBorderWidth={2}
+                                pointBorderColor="#fff"
+                                colors={['hsl(var(--primary))']}
+                                lineWidth={2}
+                                enableArea={false}
+                                animate={true}
+                                motionConfig="gentle"
+                            />
+                        </div>
                     </CardContent>
                 </Card>
             </div>

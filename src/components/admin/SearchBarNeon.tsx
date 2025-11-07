@@ -58,14 +58,14 @@ export function SearchBarNeon({
                            backdrop-blur-xl ring-1 ring-white/10 dark:ring-white/5
                            shadow-[0_8px_30px_rgba(0,0,0,.25)]
                            transition-all duration-300
-                           group-focus-within:ring-emerald-300/40
-                           group-focus-within:shadow-[0_0_12px_rgba(16,185,129,.4),inset_0_0_12px_rgba(16,185,129,.15)]"
+                           group-focus-within:ring-[#46D6C8]/40
+                           group-focus-within:shadow-[0_0_12px_rgba(70,214,200,.4),inset_0_0_12px_rgba(70,214,200,.15)]"
             />
 
             {/* мягкое свечение по периметру (как в навбаре) */}
             <span
                 className="pointer-events-none absolute rounded-2xl inset-0 -z-10 opacity-0
-                           ring-1 ring-emerald-400/20
+                           ring-1 ring-[#46D6C8]/20
                            motion-safe:group-focus-within:animate-perimeter-glow
                            group-focus-within:opacity-100 transition-opacity duration-300"
             />
@@ -77,13 +77,13 @@ export function SearchBarNeon({
                     className="absolute left-3 top-1/2 -translate-y-1/2
                                grid place-items-center size-9 rounded-xl
                                bg-black/35 ring-1 ring-white/10
-                               text-emerald-300
-                               shadow-[0_0_12px_rgba(16,185,129,.25)]
+                               text-[#46D6C8]
+                               shadow-[0_0_12px_rgba(70,214,200,.25)]
                                transition-all duration-300
                                group-focus-within:scale-110"
                 >
                     <svg
-                        className="size-[18px] transition-all duration-300 animate-none group-focus-within:animate-search-wiggle group-focus-within:scale-[1.2] group-focus-within:drop-shadow-[0_0_6px_rgba(16,185,129,.8)]"
+                        className="size-[18px] transition-all duration-300 animate-none group-focus-within:animate-search-wiggle group-focus-within:scale-[1.2] group-focus-within:drop-shadow-[0_0_6px_rgba(70,214,200,.8)]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"

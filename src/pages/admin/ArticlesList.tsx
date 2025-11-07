@@ -167,7 +167,7 @@ const ArticlesList = () => {
                             <button
                                 type="button"
                                 onClick={() => navigate('/admin/articles/new')}
-                                className="btn-glass-emerald motion-safe:animate-pulse-slow text-sm sm:text-base px-5 sm:px-6 py-3 sm:py-3.5"
+                                className="btn-glass-emerald text-sm sm:text-base px-5 sm:px-6 py-3 sm:py-3.5 hover:ring-2 hover:ring-[#46D6C8]/50 transition-all duration-200"
                             >
                                 <span className="flex items-center justify-center gap-2">
                                     <span className="text-xl leading-none">+</span>
@@ -187,7 +187,7 @@ const ArticlesList = () => {
                         <button
                             type="button"
                             onClick={() => navigate('/admin/articles/new')}
-                            className="btn-glass-emerald motion-safe:animate-pulse-slow text-base px-4 py-2.5"
+                            className="btn-glass-emerald text-base px-4 py-2.5 hover:ring-2 hover:ring-[#46D6C8]/50 transition-all duration-200"
                         >
                             + {t('admin.createArticle', 'Створити статтю')}
                         </button>
@@ -197,11 +197,11 @@ const ArticlesList = () => {
                 {/* List / Empty */}
                 <div className="mx-auto max-w-[1400px] py-4 sm:py-6 mt-4 sm:mt-6 relative">
                     {/* Мягкий radial-gradient под таблицу */}
-                    <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,.08),transparent_70%)] opacity-50 rounded-2xl" />
+                    <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(70,214,200,.08),transparent_70%)] opacity-50 rounded-2xl" />
                     {filtered.length === 0 ? (
                         <section className="glass-card relative rounded-2xl p-6 md:p-7">
                             {/* мягкое объемное свечение по периметру */}
-                            <span className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_70%_at_50%_0%,rgba(52,211,153,.12),transparent_60%)]" />
+                            <span className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_70%_at_50%_0%,rgba(70,214,200,.12),transparent_60%)]" />
 
                             {/* внутренний контент */}
                             <h3 className="text-center text-slate-200 font-medium">{t('admin.noArticlesFound', 'Нічого не знайдено')}</h3>
@@ -214,20 +214,20 @@ const ArticlesList = () => {
                                 {filtered.length === 1
                                     ? (
                                         <>
-                                            {t('admin.foundOneArticle', 'Знайдено')} <span className="text-emerald-400 font-semibold">1</span> {t('admin.article', 'стаття')}
+                                            {t('admin.foundOneArticle', 'Знайдено')} <span className="text-[#46D6C8] font-semibold">1</span> {t('admin.article', 'стаття')}
                                         </>
                                     )
                                     : (
                                         <>
-                                            {t('admin.foundArticles', 'Знайдено')} <span className="text-emerald-400 font-semibold">{filtered.length}</span> {t('admin.articles', 'статей')}
+                                            {t('admin.foundArticles', 'Знайдено')} <span className="text-[#46D6C8] font-semibold">{filtered.length}</span> {t('admin.articles', 'статей')}
                                         </>
                                     )
                                 }
                             </p>
                             {/* Desktop Table */}
-                            <div className="hidden lg:block overflow-x-auto rounded-xl border border-emerald-400/15 bg-neutral-950/60 relative">
+                            <div className="hidden lg:block overflow-x-auto rounded-xl border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-sm relative">
                                 <table className="min-w-[900px] w-full">
-                                    <thead className="text-left text-sm text-neutral-400 border-b border-emerald-400/15">
+                                    <thead className="text-left text-sm text-neutral-400 border-b border-[#46D6C8]/10">
                                         <tr>
                                             <th className="px-4 py-3">{t('admin.articleTitle', 'Назва статті')}</th>
                                             <th className="px-4 py-3">{t('admin.category', 'Категорія')}</th>
@@ -237,7 +237,7 @@ const ArticlesList = () => {
                                             <th className="px-4 py-3 text-right">{t('admin.actions', 'Дії')}</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-emerald-400/10">
+                                    <tbody className="divide-y divide-[#46D6C8]/10">
                                         {filtered.map((a, index) => {
                                             // Форматирование даты
                                             const formatDate = (dateString: string) => {
@@ -258,7 +258,7 @@ const ArticlesList = () => {
                                                 <tr
                                                     key={a.id}
                                                     data-status={a.status}
-                                                    className="text-sm hover:bg-emerald-500/5 hover:shadow-[inset_0_0_8px_rgba(16,185,129,.15)] transition-all duration-250 motion-safe:animate-fade-in-up"
+                                                    className="text-sm hover:bg-[#46D6C8]/10 hover:shadow-[inset_0_0_8px_rgba(70,214,200,.15)] transition-all duration-250 motion-safe:animate-fade-in-up"
                                                     style={{ animationDelay: `${index * 0.03}s` }}
                                                 >
                                                     <td className="px-4 py-3">{getTitle(a)}</td>
@@ -276,7 +276,7 @@ const ArticlesList = () => {
                                                                 <span className={
                                                                     "rounded-md px-2 py-0.5 text-xs ring-1 " +
                                                                     (isPublished
-                                                                        ? "bg-emerald-500/10 ring-emerald-400/30"
+                                                                        ? "bg-[#46D6C8]/20 ring-[#46D6C8]/40"
                                                                         : isScheduled
                                                                             ? "bg-amber-500/10 ring-amber-400/30"
                                                                             : "bg-neutral-800 ring-neutral-600/40") +
@@ -298,7 +298,7 @@ const ArticlesList = () => {
                                                             const glowClass = authorRole === 'superadmin'
                                                                 ? 'drop-shadow-[0_0_6px_rgba(251,113,133,.8)]'
                                                                 : authorRole === 'admin'
-                                                                    ? 'drop-shadow-[0_0_6px_rgba(52,211,153,.8)]'
+                                                                    ? 'drop-shadow-[0_0_6px_rgba(70,214,200,.8)]'
                                                                     : authorRole === 'editor'
                                                                         ? 'drop-shadow-[0_0_6px_rgba(129,140,248,.8)]'
                                                                         : '';
@@ -356,7 +356,7 @@ const ArticlesList = () => {
                                     const glowClass = authorRole === 'superadmin'
                                         ? 'drop-shadow-[0_0_6px_rgba(251,113,133,.8)]'
                                         : authorRole === 'admin'
-                                            ? 'drop-shadow-[0_0_6px_rgba(52,211,153,.8)]'
+                                            ? 'drop-shadow-[0_0_6px_rgba(70,214,200,.8)]'
                                             : authorRole === 'editor'
                                                 ? 'drop-shadow-[0_0_6px_rgba(129,140,248,.8)]'
                                                 : '';
@@ -364,7 +364,7 @@ const ArticlesList = () => {
                                         <div
                                             key={a.id}
                                             data-status={a.status}
-                                            className="glass-card relative rounded-xl p-4 sm:p-5 border border-emerald-400/15 hover:border-emerald-400/30 transition-all duration-250"
+                                            className="glass-card relative rounded-xl p-4 sm:p-5 border border-[#46D6C8]/20 hover:border-[#46D6C8]/30 transition-all duration-250"
                                         >
                                             {/* Индикатор статуса слева */}
                                             {isPublished || isScheduled ? (
@@ -372,7 +372,7 @@ const ArticlesList = () => {
                                                     className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl pointer-events-none"
                                                     style={{
                                                         background: isPublished
-                                                            ? 'linear-gradient(to bottom, #10b981, #34d399)'
+                                                            ? 'linear-gradient(to bottom, #46D6C8, #46D6C8)'
                                                             : 'linear-gradient(to bottom, #f59e0b, #fbbf24)'
                                                     }}
                                                 />
@@ -421,7 +421,7 @@ const ArticlesList = () => {
                                                     <span className={
                                                         "rounded-md px-2 py-0.5 text-xs ring-1 " +
                                                         (isPublished
-                                                            ? "bg-emerald-500/10 ring-emerald-400/30"
+                                                            ? "bg-[#46D6C8]/20 ring-[#46D6C8]/40"
                                                             : isScheduled
                                                                 ? "bg-amber-500/10 ring-amber-400/30"
                                                                 : "bg-neutral-800 ring-neutral-600/40") +

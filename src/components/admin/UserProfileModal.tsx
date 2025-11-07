@@ -282,22 +282,24 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
         // 1. Backdrop (Фон-затемнення зі склом)
         <div
             onClick={onClose}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             // 🔥 ОБРОБНИКИ МИШІ ПРИКРІПЛЕНІ ДО ФОНУ
             onMouseMove={handleMouseMove} 
             onMouseLeave={handleMouseLeave}
         >
-            {/* 2. Сама Модальна Картка (Теж "скло" з неоном) */}
+            {/* 🔥 ЗОВНІШНЯ КАРТКА ("Рамка")
+                Вона відповідає ТІЛЬКИ за 3D-нахил. У неї НЕМАЄ скролу.
+            */}
             <div
                 ref={modalRef} // <--- ПРИВ'ЯЗУЄМО REF
                 onClick={(e) => e.stopPropagation()} // Не закривати при кліку на картку
-                className="relative w-full max-w-sm mx-4 sm:mx-6 md:mx-auto rounded-2xl border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-lg shadow-[0_0_40px_rgba(70,214,200,0.2)]"
+                className="relative w-full max-w-sm lg:max-w-md rounded-2xl border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-lg shadow-[0_0_40px_rgba(70,214,200,0.2)]"
                 style={{ transformStyle: 'preserve-3d' }} // <--- Потрібно для 3D
             >
                 {/* Кнопка закриття (Х) */}
                 <button
                     onClick={onClose}
-                    className="absolute top-5 right-5 text-gray-500 hover:text-white transition-colors z-10"
+                    className="absolute top-3 right-3 text-white/50 hover:text-white transition-colors z-10"
                     aria-label="Закрити"
                 >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,10 +307,15 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
                     </svg>
                 </button>
 
-                {/* 3. Контент */}
-                <div className="p-6">
+                {/* 🔥 ВНУТРІШНІЙ КОНТЕЙНЕР ("Контент")
+                    Він відповідає ТІЛЬКИ за скрол.
+                */}
+                <div 
+                    className="max-h-[85vh] overflow-y-auto p-4 lg:p-6"
+                    style={{ transform: 'translateZ(0)' }} // Маленький трюк для плавності скролу
+                >
                     {/* Заголовок (Аватар + Ім'я) */}
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-3 lg:space-x-4 mb-4 lg:mb-6">
                         <span className="flex-shrink-0 h-16 w-16 flex items-center justify-center rounded-full bg-[#0a0e0c] ring-2 ring-[#46D6C8] text-3xl font-medium text-[#46D6C8] font-sans">
                             {user.display_name?.charAt(0).toUpperCase() || 'T'}
                         </span>
@@ -320,29 +327,29 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
                     </div>
 
                     {/* Розділювач (неоновий) */}
-                    <hr className="my-5 h-px border-0 bg-gradient-to-r from-[#46D6C8]/50 via-[#46D6C8]/20 to-transparent" />
+                    <hr className="my-3 lg:my-4 h-px border-0 bg-white/10" />
 
                     {/* Інформація (дві колонки) */}
-                    <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                    <dl className="grid grid-cols-1 gap-x-4 lg:gap-x-6 gap-y-2 lg:gap-y-3 sm:grid-cols-2">
                         <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-400 font-sans">Роль:</dt>
-                            <dd className="mt-1">
+                            <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Роль:</dt>
+                            <dd className="mt-1 lg:mt-2">
                                 <RolePill role={user.role} />
                             </dd>
                         </div>
                         <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-400 font-sans">Статус:</dt>
-                            <dd className="mt-1">
+                            <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Статус:</dt>
+                            <dd className="mt-1 lg:mt-2">
                                 <StatusPill status={user.status || 'active'} />
                             </dd>
                         </div>
                         <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-400 font-sans">Позывной:</dt>
-                            <dd className="text-base text-white font-sans">{user.callsign || '—'}</dd>
+                            <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Позывной:</dt>
+                            <dd className="text-base lg:text-lg text-white font-sans mt-1 lg:mt-2">{user.callsign || '—'}</dd>
                         </div>
                         <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-400 font-sans">Телефон:</dt>
-                            <dd className="text-base text-white font-sans">{user.phone || '—'}</dd>
+                            <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Телефон:</dt>
+                            <dd className="text-base lg:text-lg text-white font-sans mt-1 lg:mt-2">{user.phone || '—'}</dd>
                         </div>
                         {/* ID (повна ширина) */}
                         <div className="sm:col-span-2">
@@ -352,15 +359,15 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
 
                         {/* Другий розділювач */}
                         <div className="sm:col-span-2">
-                            <hr className="my-2 h-px border-0 bg-gradient-to-r from-[#46D6C8]/30 via-[#46D6C8]/10 to-transparent" />
+                            <hr className="my-2 lg:my-3 h-px border-0 bg-white/10" />
                         </div>
                         <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-400 font-sans">Дата реєстрації:</dt>
-                            <dd className="text-base text-white font-sans">{formatDate(user.created_at)}</dd>
+                            <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Дата реєстрації:</dt>
+                            <dd className="text-base lg:text-lg text-white font-sans mt-1 lg:mt-2">{formatDate(user.created_at)}</dd>
                         </div>
                         <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-400 font-sans">Останній візит:</dt>
-                            <dd className="text-base text-white font-sans">{formatDate(user.last_sign_in_at)}</dd>
+                            <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Останній візит:</dt>
+                            <dd className="text-base lg:text-lg text-white font-sans mt-1 lg:mt-2">{formatDate(user.last_sign_in_at)}</dd>
                         </div>
                     </dl>
 
@@ -380,8 +387,8 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
                             </button>
                         </div>
                     )}
-                </div>
-            </div>
+                </div> {/* Кінець внутрішнього контейнера скролу */}
+            </div> {/* Кінець зовнішньої "рамки" 3D */}
         </div>
     );
 }

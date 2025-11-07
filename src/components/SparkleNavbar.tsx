@@ -79,8 +79,13 @@ const SparkleNavbar = () => {
     });
 
     const handleSignOut = async () => {
-        await signOut();
-        navigate('/');
+        const { error } = await signOut();
+        if (!error) {
+            // Редирект на главную страницу после успешного выхода
+            window.location.href = '/';
+        } else {
+            console.error('Logout error:', error);
+        }
     };
 
     const isActive = (path: string) => {

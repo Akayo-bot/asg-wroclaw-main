@@ -13,7 +13,7 @@ export function CommandButtonSoft({ icon, label, onClick }: CommandButtonSoftPro
             tabIndex={0}
             aria-label={label}
             type="button"
-            className="group mt-3 w-full rounded-lg bg-neutral-900/70 px-3 py-2.5 text-left text-neutral-200 ring-1 ring-emerald-400/25 hover:bg-neutral-900 hover:ring-emerald-400/45 transition focus:outline-none focus:ring-2 focus:ring-emerald-400/50 pointer-events-auto cursor-target touch-auto"
+            className="group mt-3 w-full rounded-lg bg-neutral-900/70 px-3 py-2.5 text-left text-neutral-200 ring-1 ring-[#46D6C8]/25 hover:bg-neutral-900 hover:ring-[#46D6C8]/45 transition focus:outline-none focus:ring-2 focus:ring-[#46D6C8]/50 pointer-events-auto cursor-target touch-auto"
             onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -25,7 +25,7 @@ export function CommandButtonSoft({ icon, label, onClick }: CommandButtonSoftPro
                 {icon}
                 {label}
             </span>
-            <span className="float-right text-emerald-300 transition-transform group-hover:translate-x-0.5">›</span>
+            <span className="float-right text-[#46D6C8] transition-transform group-hover:translate-x-0.5">›</span>
         </button>
     );
 }

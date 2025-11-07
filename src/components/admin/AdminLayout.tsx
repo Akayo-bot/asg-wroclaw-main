@@ -118,13 +118,13 @@ const AdminLayout = () => {
             <div className="min-h-screen flex w-full bg-[var(--adm-bg)]">
                 {/* Desktop Sidebar - hidden on mobile */}
                 {/* Закрепленная навигация */}
-                <div className="fixed top-[112px] left-[12px] lg:w-[300px] xl:w-[320px] lg:left-[12px] p-4 overflow-visible z-[90] bg-neutral-950/85 backdrop-blur-sm rounded-2xl hidden lg:block ring-1 ring-emerald-400/30 shadow-[0_0_40px_rgba(16,185,129,.15)]">
+                <div className="fixed top-[112px] left-[12px] lg:w-[300px] xl:w-[320px] lg:left-[12px] p-4 overflow-visible z-[90] bg-[#04070A]/80 backdrop-blur-sm rounded-2xl hidden lg:block ring-1 ring-[#46D6C8]/30 shadow-[0_0_40px_rgba(70,214,200,.15)]">
                     {/* Тонкая сетка */}
                     <div
                         className="pointer-events-none absolute inset-0 opacity-[0.06] rounded-2xl"
                         style={{
                             background: `
-                                radial-gradient(circle at 20% 0%, #10b981 0, transparent 40%),
+                                radial-gradient(circle at 20% 0%, #46D6C8 0, transparent 40%),
                                 linear-gradient(transparent 23px, #0a0a0a 24px),
                                 linear-gradient(90deg, transparent 23px, #0a0a0a 24px)
                             `,
@@ -141,32 +141,32 @@ const AdminLayout = () => {
                                     aria-current={active ? 'page' : undefined}
                                     data-active={active ? 'true' : undefined}
                                     className={`group relative flex items-center gap-3 rounded-2xl px-4 py-4 overflow-visible
-                                            bg-neutral-900/70 ring-1 ring-emerald-400/15 shadow-[inset_0_0_10px_rgba(16,185,129,.10)]
+                                            bg-black/30 ring-1 ring-[#46D6C8]/20 shadow-[inset_0_0_10px_rgba(70,214,200,.10)]
                                             transition-colors duration-200 cursor-target
-                                            md:hover:bg-neutral-900/85 md:hover:ring-emerald-400/50 md:hover:shadow-[0_0_20px_rgba(16,185,129,.25),inset_0_0_12px_rgba(16,185,129,.15)]
-                                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-offset-0
-                                            data-[active=true]:bg-teal-100 data-[active=true]:border-l-4 data-[active=true]:border-l-teal-300 data-[active=true]:animate-neon-pulse rounded-r-lg
+                                            md:hover:bg-black/40 md:hover:ring-[#46D6C8]/50 md:hover:shadow-[0_0_20px_rgba(70,214,200,.25),inset_0_0_12px_rgba(70,214,200,.15)]
+                                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#46D6C8]/70 focus-visible:ring-offset-0
+                                            data-[active=true]:bg-[#46D6C8]/20 data-[active=true]:border-l-4 data-[active=true]:border-l-[#46D6C8] data-[active=true]:animate-neon-pulse rounded-r-lg
                                             data-[active=true]:shadow-[0_0_22px_rgba(70,214,200,.26),inset_0_0_12px_rgba(70,214,200,.14)]
                                             motion-reduce:transition-none
                                             ${active ? 'isolate' : ''}`}
                                 >
                                     {/* Иконка-капсула */}
                                     <span className="relative z-10 grid place-items-center size-10 rounded-full
-                                            bg-black/45 ring-1 ring-emerald-300/30
-                                            shadow-[0_0_14px_rgba(16,185,129,.20)]
+                                            bg-black/45 ring-1 ring-[#46D6C8]/30
+                                            shadow-[0_0_14px_rgba(70,214,200,.20)]
                                             transition-transform duration-150
-                                            md:group-hover:ring-emerald-300/45 md:group-hover:shadow-[0_0_28px_rgba(16,185,129,.40)]
-                                            data-[active=true]:shadow-[0_0_22px_rgba(16,185,129,.42)]"
+                                            md:group-hover:ring-[#46D6C8]/45 md:group-hover:shadow-[0_0_28px_rgba(70,214,200,.40)]
+                                            data-[active=true]:shadow-[0_0_22px_rgba(70,214,200,.42)]"
                                     >
                                         {/* Радиальный градиент для свечения */}
                                         <span
-                                            className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(16,185,129,.38),transparent_65%)]
+                                            className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(70,214,200,.38),transparent_65%)]
                                                     opacity-50 md:group-hover:opacity-75 transition-opacity duration-150"
                                         />
                                         <item.icon
-                                            className="relative z-10 size-[18px] text-emerald-300
-                                                    md:group-hover:text-emerald-200
-                                                    md:group-hover:drop-shadow-[0_0_12px_rgba(16,185,129,.80)]
+                                            className="relative z-10 size-[18px] text-[#46D6C8]
+                                                    md:group-hover:text-[#46D6C8]
+                                                    md:group-hover:drop-shadow-[0_0_12px_rgba(70,214,200,.80)]
                                                     md:group-hover:scale-110
                                                     transition-all duration-150"
                                         />
@@ -182,7 +182,7 @@ const AdminLayout = () => {
                                     {/* ВНЕШНИЙ glow-слой (за элементом!) */}
                                     <span className="pointer-events-none absolute -inset-1 -z-10 rounded-2xl opacity-0
                                             md:group-hover:opacity-100 transition-opacity duration-300
-                                            bg-emerald-400/20 blur-md" />
+                                            bg-[#46D6C8]/20 blur-md" />
 
                                     {/* Периметр для АКТИВНОГО: бегущий конус */}
                                     <span
@@ -191,7 +191,7 @@ const AdminLayout = () => {
                                                 [mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000,#000)]
                                                 [mask-composite:exclude]
                                                 before:absolute before:-inset-px before:rounded-[22px]
-                                                before:bg-[conic-gradient(from_0deg,transparent_0,transparent_76%,#34d399_86%,transparent_95%)]
+                                                before:bg-[conic-gradient(from_0deg,transparent_0,transparent_76%,#46D6C8_86%,transparent_95%)]
                                                 motion-safe:before:animate-[spin_7.2s_linear_infinite]
                                                 motion-reduce:before:animate-none"
                                     />
@@ -228,7 +228,7 @@ const AdminLayout = () => {
                                     {/* Внешнее размытое свечение для BORDER */}
                                     {active && (
                                         <span
-                                            className="pointer-events-none absolute -inset-[2px] rounded-2xl bg-emerald-400/15 blur-sm"
+                                            className="pointer-events-none absolute -inset-[2px] rounded-2xl bg-[#46D6C8]/15 blur-sm"
                                             style={{
                                                 zIndex: -1,
                                                 animation: 'neon-pulse-border 4s ease-in-out infinite',

@@ -87,6 +87,10 @@ export default {
                     ring: "hsl(var(--sidebar-ring))",
                 },
                 // Новая цветовая палитра
+                'teal-accent': '#46D6C8',
+                'orange-accent': '#FF7F3B',
+                'violet-accent': '#A020F0',
+                'dark-bg': '#04070A',
                 teal: {
                     DEFAULT: "#46D6C8",
                     50: "rgba(70, 214, 200, 0.05)",
@@ -157,29 +161,29 @@ export default {
                 },
                 "pulse-soft": {
                     "0%, 100%": {
-                        boxShadow: "0 0 20px rgba(16, 185, 129, 0.22), inset 0 0 12px rgba(16, 185, 129, 0.14)",
+                        boxShadow: "0 0 20px rgba(70, 214, 200, 0.22), inset 0 0 12px rgba(70, 214, 200, 0.14)",
                     },
                     "50%": {
-                        boxShadow: "0 0 28px rgba(16, 185, 129, 0.34), inset 0 0 14px rgba(16, 185, 129, 0.18)",
+                        boxShadow: "0 0 28px rgba(70, 214, 200, 0.34), inset 0 0 14px rgba(70, 214, 200, 0.18)",
                     },
                 },
                 "pulse-deep": {
                     "0%, 100%": {
                         opacity: "0.1",
-                        boxShadow: "inset 0 0 30px rgba(16, 185, 129, 0.25), inset 0 0 15px rgba(52, 211, 153, 0.15)",
+                        boxShadow: "inset 0 0 30px rgba(70, 214, 200, 0.25), inset 0 0 15px rgba(70, 214, 200, 0.15)",
                     },
                     "50%": {
                         opacity: "0.6",
-                        boxShadow: "inset 0 0 50px rgba(16, 185, 129, 0.45), inset 0 0 30px rgba(52, 211, 153, 0.3)",
+                        boxShadow: "inset 0 0 50px rgba(70, 214, 200, 0.45), inset 0 0 30px rgba(70, 214, 200, 0.3)",
                     },
                 },
                 "neon-pulse": {
                     "0%, 100%": {
-                        boxShadow: "0 0 8px rgba(52, 211, 153, 0.4), inset 0 0 3px rgba(52, 211, 153, 0.3)",
+                        boxShadow: "0 0 8px rgba(70, 214, 200, 0.4), inset 0 0 3px rgba(70, 214, 200, 0.3)",
                         opacity: "0.9",
                     },
                     "50%": {
-                        boxShadow: "0 0 16px rgba(52, 211, 153, 0.7), inset 0 0 5px rgba(52, 211, 153, 0.5)",
+                        boxShadow: "0 0 16px rgba(70, 214, 200, 0.7), inset 0 0 5px rgba(70, 214, 200, 0.5)",
                         opacity: "1",
                     },
                 },

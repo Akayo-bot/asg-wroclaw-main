@@ -76,14 +76,14 @@
 
 /* === Кнопка "Опублікувати": теперь использует стиль от btn-home (glass neon) === */
 .btn-back {
-  /* палитра – зелёный (emerald), как у остальных кнопок в редакторе */
-  --back-bg:        #07150d;
-  --back-bg-2:      #0b1e14;
-  --back-border:    #153725;
-  --back-text:      #d7f5e6;
-  --back-neon:      #10b981; /* emerald-500 */
-  --back-neon-soft: rgba(16,185,129,.32);
-  --back-neon-hard: rgba(16,185,129,.55);
+  /* палитра – Teal (#46D6C8), как в RoleManager */
+  --back-bg:        #04070A;
+  --back-bg-2:      #04070A;
+  --back-border:    #46D6C8;
+  --back-text:      #46D6C8;
+  --back-neon:      #46D6C8; /* Teal */
+  --back-neon-soft: rgba(70,214,200,.32);
+  --back-neon-hard: rgba(70,214,200,.55);
 
   color: var(--back-neon);
   background: linear-gradient(to bottom, var(--back-bg), var(--back-bg-2));
@@ -97,11 +97,11 @@
 
   /* свечение в состоянии покоя (как было при hover) */
   box-shadow:
-    0 0 12px rgba(16,185,129,0.20),
-    0 0 24px rgba(16,185,129,0.18),
+    0 0 12px rgba(70,214,200,0.20),
+    0 0 24px rgba(70,214,200,0.18),
     inset 0 1px 0 rgba(255,255,255,0.06),
-    inset 0 0 12px rgba(16,185,129,0.12);
-  filter: drop-shadow(0 0 6px rgba(16,185,129,0.20));
+    inset 0 0 12px rgba(70,214,200,0.12);
+  filter: drop-shadow(0 0 6px rgba(70,214,200,0.20));
 
   transition:
     background .25s ease,
@@ -127,19 +127,19 @@
 @keyframes btn-back-pulse {
   0%, 100% {
     box-shadow:
-      0 0 12px rgba(16,185,129,0.20),
-      0 0 24px rgba(16,185,129,0.18),
+      0 0 12px rgba(70,214,200,0.20),
+      0 0 24px rgba(70,214,200,0.18),
       inset 0 1px 0 rgba(255,255,255,0.06),
-      inset 0 0 12px rgba(16,185,129,0.12);
-    filter: drop-shadow(0 0 6px rgba(16,185,129,0.20));
+      inset 0 0 12px rgba(70,214,200,0.12);
+    filter: drop-shadow(0 0 6px rgba(70,214,200,0.20));
   }
   50% {
     box-shadow:
-      0 0 18px rgba(16,185,129,0.35),
-      0 0 32px rgba(16,185,129,0.28),
+      0 0 18px rgba(70,214,200,0.35),
+      0 0 32px rgba(70,214,200,0.28),
       inset 0 1px 0 rgba(255,255,255,0.06),
-      inset 0 0 16px rgba(16,185,129,0.20);
-    filter: drop-shadow(0 0 10px rgba(16,185,129,0.35));
+      inset 0 0 16px rgba(70,214,200,0.20);
+    filter: drop-shadow(0 0 10px rgba(70,214,200,0.35));
   }
 }
 
@@ -148,7 +148,7 @@
   transform: translateY(1px) scale(0.99);
   box-shadow:
     0 0 24px var(--back-neon-hard),
-    inset 0 0 22px rgba(16,185,129,0.24);
+    inset 0 0 22px rgba(70,214,200,0.24);
 }
 
 /* доступность: кольцо фокуса */
@@ -156,8 +156,8 @@
   outline: none;
   border-color: var(--back-neon);
   box-shadow:
-    0 0 0 3px rgba(16,185,129,0.25),
-    inset 0 0 14px rgba(16,185,129,0.18);
+    0 0 0 3px rgba(70,214,200,0.25),
+    inset 0 0 14px rgba(70,214,200,0.18);
 }
 
 /* уважение к системным настройкам анимаций */

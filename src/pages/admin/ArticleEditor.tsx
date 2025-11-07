@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import AdminShell from '@/components/admin/AdminShell';
 import ArticleEditorModern, { ArticlePayload } from '@/components/admin/ArticleEditorModern';
 import { Tables } from '@/integrations/supabase/types';
+import { logActivity } from '@/utils/activityLogger';
 
 type Article = Tables<'articles'>;
 
@@ -69,17 +70,25 @@ const ArticleEditor = () => {
     setLoading(true);
     try {
       const articleData = {
-        title_uk: payload.title,
-        preview_uk: payload.preview,
-        content_uk: payload.body,
+        title_uk: payload.title || '',
+        title_ru: payload.title || '', // Используем title_uk как fallback
+        title_pl: payload.title || '', // Используем title_uk как fallback
+        preview_uk: payload.preview || '',
+        preview_ru: payload.preview || '', // Используем preview_uk как fallback
+        preview_pl: payload.preview || '', // Используем preview_uk как fallback
+        content_uk: payload.body || '',
+        content_ru: payload.body || '', // Используем content_uk как fallback
+        content_pl: payload.body || '', // Используем content_uk как fallback
         category: payload.category as 'tactics' | 'equipment' | 'news' | 'game_reports' | 'rules',
         main_image_url: payload.mainImageUrl || null,
-        seo_title_uk: payload.seo.slug,
+        seo_title_uk: payload.seo.slug || null,
         seo_description_uk: payload.seo.metaDescription || null,
         status: 'published' as const,
         author_id: user.id,
       };
 
+      let articleId = id;
+      
       if (isEdit && id) {
         const { error } = await supabase
           .from('articles')
@@ -87,12 +96,34 @@ const ArticleEditor = () => {
           .eq('id', id);
 
         if (error) throw error;
+        
+        // Логируем обновление статьи
+        await logActivity('ARTICLE_UPDATE', {
+          articleId: id,
+          title: payload.title,
+        });
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('articles')
-          .insert(articleData);
+          .insert(articleData)
+          .select('id')
+          .single();
 
         if (error) throw error;
+        
+        articleId = data.id;
+        
+        // Логируем создание статьи
+        await logActivity('ARTICLE_CREATE', {
+          articleId: data.id,
+          title: payload.title,
+        });
+        
+        // Логируем публикацию статьи
+        await logActivity('ARTICLE_PUBLISH', {
+          articleId: data.id,
+          title: payload.title,
+        });
       }
 
       toast({
@@ -120,16 +151,24 @@ const ArticleEditor = () => {
     try {
       const articleData = {
         title_uk: payload.title || '',
+        title_ru: payload.title || '', // Используем title_uk как fallback
+        title_pl: payload.title || '', // Используем title_uk как fallback
         preview_uk: payload.preview || '',
+        preview_ru: payload.preview || '', // Используем preview_uk как fallback
+        preview_pl: payload.preview || '', // Используем preview_uk как fallback
         content_uk: payload.body || '',
+        content_ru: payload.body || '', // Используем content_uk как fallback
+        content_pl: payload.body || '', // Используем content_uk как fallback
         category: (payload.category || 'news') as 'tactics' | 'equipment' | 'news' | 'game_reports' | 'rules',
         main_image_url: payload.mainImageUrl || null,
-        seo_title_uk: payload.seo?.slug || '',
+        seo_title_uk: payload.seo?.slug || null,
         seo_description_uk: payload.seo?.metaDescription || null,
         status: 'draft' as const,
         author_id: user.id,
       };
 
+      let articleId = id;
+      
       if (isEdit && id) {
         const { error } = await supabase
           .from('articles')
@@ -137,12 +176,28 @@ const ArticleEditor = () => {
           .eq('id', id);
 
         if (error) throw error;
+        
+        // Логируем обновление черновика
+        await logActivity('ARTICLE_UPDATE', {
+          articleId: id,
+          title: payload.title,
+        });
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('articles')
-          .insert(articleData);
+          .insert(articleData)
+          .select('id')
+          .single();
 
         if (error) throw error;
+        
+        articleId = data.id;
+        
+        // Логируем создание черновика
+        await logActivity('ARTICLE_CREATE', {
+          articleId: data.id,
+          title: payload.title,
+        });
       }
 
       toast({

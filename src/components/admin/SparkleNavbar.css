@@ -186,9 +186,22 @@
 /* Правый блок - Actions */
 .sparkle-nav__right {
   margin-left: auto;
-  display: flex;
+  display: none; /* Скрыто по умолчанию на мобильных */
   align-items: center;
   gap: 12px;
+}
+
+/* Показываем только на больших экранах */
+/* Правая секция видна на всех экранах */
+.sparkle-nav__right {
+  display: flex;
+}
+
+/* Скрываем кнопку "На головную" на мобильных */
+@media (max-width: 1023px) {
+  .sparkle-nav__right .btn-home {
+    display: none !important;
+  }
 }
 
 /* Линки с неоновым эффектом — Green Neon + Glass */
@@ -634,8 +647,9 @@
     height: 24px;
   }
 
+  /* Имя и роль показываем на мобильной */
   .btn-avatar .name {
-    display: none; /* Скрываем имя на мобильной */
+    display: block;
   }
 
   /* Dropdown menu для мобильной версии */
@@ -688,7 +702,7 @@
   }
 
   .btn-avatar .name {
-    display: none;
+    display: block;
   }
 
   .menu-panel {
