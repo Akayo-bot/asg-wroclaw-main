@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useI18n } from '@/contexts/I18nContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -16,7 +17,8 @@ import {
     PenSquare,
     Palette,
     LineChart,
-    CircleDot,
+    Circle,
+    Dot,
     Database,
     Clock,
     Archive,
@@ -52,6 +54,7 @@ interface AdminStats {
 
 const AdminDashboard = () => {
     const { t } = useI18n();
+    const { profile } = useAuth();
     const navigate = useNavigate();
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -131,7 +134,7 @@ const AdminDashboard = () => {
                 {/* System Status Bar */}
                 <div className="flex flex-wrap items-center gap-4 text-sm text-[#46D6C8]/80 bg-[#46D6C8]/5 rounded-lg px-4 py-2.5 ring-1 ring-[#46D6C8]/20 animate-fade-in">
                     <span className="flex items-center gap-2">
-                        <CircleDot className="h-3.5 w-3.5 text-green-500 animate-pulse" />
+                        <span className="h-3.5 w-3.5 rounded-full bg-green-500 shrink-0 status-online-dot" />
                         <span className="text-green-500">Online</span>
                     </span>
                     <span className="flex items-center gap-2">
@@ -228,16 +231,19 @@ const AdminDashboard = () => {
                         />
                     </AdminCard>
 
-                    <AdminCard title={t('admin.branding.title', 'Управління брендом')} icon={<Palette className="h-5 w-5 text-[#46D6C8]/80" />}>
-                        <p className="text-sm text-neutral-400">
-                            {t('admin.branding.description', 'Налаштування бренду та зовнішнього вигляду')}
-                        </p>
-                        <CommandButtonSoft
-                            icon={<PenSquare className="h-4 w-4 text-[#46D6C8]/80" />}
-                            label={t('admin.openBrandPanel', 'Відкрити бренд-панель')}
-                            onClick={() => navigate('/admin/branding')}
-                        />
-                    </AdminCard>
+                    {/* Управління брендом доступне тільки для SuperAdmin */}
+                    {profile?.role === 'superadmin' && (
+                        <AdminCard title={t('admin.branding.title', 'Управління брендом')} icon={<Palette className="h-5 w-5 text-[#46D6C8]/80" />}>
+                            <p className="text-sm text-neutral-400">
+                                {t('admin.branding.description', 'Налаштування бренду та зовнішнього вигляду')}
+                            </p>
+                            <CommandButtonSoft
+                                icon={<PenSquare className="h-4 w-4 text-[#46D6C8]/80" />}
+                                label={t('admin.openBrandPanel', 'Відкрити бренд-панель')}
+                                onClick={() => navigate('/admin/branding')}
+                            />
+                        </AdminCard>
+                    )}
                 </div>
 
                 {/* Widgets Section */}

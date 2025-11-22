@@ -2,6 +2,7 @@ import { useActivityLog, ActivityLogItem } from '@/hooks/useActivityLog';
 import { Loader2 } from 'lucide-react';
 import { roleColors } from '@/components/admin/RolePill';
 import { getActionColor, getActionTextColor } from '@/utils/activityColors';
+import { getStatusPillClasses } from '@/utils/statusColors';
 
 /**
  * Рендерит содержимое лога с правильной цветовой схемой:
@@ -110,26 +111,44 @@ const renderLogContent = (log: ActivityLogItem): JSX.Element => {
                 </>
             );
         }
-        case 'USER_BAN':
+        case 'USER_BAN': {
+            const statusText = 'заблокировал(а)';
+            const newStatus = 'banned';
             return (
                 <>
                     <span className={`${authorColor} font-semibold`}>{actorName}</span>
                     {' '}
-                    <span className={actionTextColor}>заблокував(ла) користувача</span>
+                    <span className={actionTextColor}>{statusText} користувача</span>
                     {' '}
                     <span className="text-white font-semibold">«{details.targetUser || 'Невідомий'}»</span>
+                    {' '}
+                    <span className="text-gray-400">(Статус: </span>
+                    <span className={getStatusPillClasses(newStatus)}>
+                        {newStatus.toUpperCase()}
+                    </span>
+                    <span className="text-gray-400">)</span>
                 </>
             );
-        case 'USER_UNBAN':
+        }
+        case 'USER_UNBAN': {
+            const statusText = 'разблокировал(а)';
+            const newStatus = 'active';
             return (
                 <>
                     <span className={`${authorColor} font-semibold`}>{actorName}</span>
                     {' '}
-                    <span className={actionTextColor}>розблокував(ла) користувача</span>
+                    <span className={actionTextColor}>{statusText} користувача</span>
                     {' '}
                     <span className="text-white font-semibold">«{details.targetUser || 'Невідомий'}»</span>
+                    {' '}
+                    <span className="text-gray-400">(Статус: </span>
+                    <span className={getStatusPillClasses(newStatus)}>
+                        {newStatus.toUpperCase()}
+                    </span>
+                    <span className="text-gray-400">)</span>
                 </>
             );
+        }
 
         // --- Галерея ---
         case 'GALLERY_ADD':

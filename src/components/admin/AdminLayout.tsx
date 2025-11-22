@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/I18nContext';
-import { LayoutDashboard, FileText, Images, Calendar, Users, UserCog, ChartBar as BarChart3, Settings, Palette, Shield } from 'lucide-react';
+import { LayoutDashboard, FileText, Images, Calendar, Users, UserCog, ChartBar as BarChart3, Palette, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import TargetCursor from '@/components/TargetCursor';
 import { autoTargetInteractiveElements } from '@/utils/autoTarget';
@@ -64,8 +64,9 @@ const AdminLayout = () => {
         { icon: LayoutDashboard, label: t('admin.dashboard', 'Панель керування'), path: '/admin' },
         { icon: FileText, label: t('admin.articles', 'Статті'), path: '/admin/articles' },
         { icon: Shield, label: t('admin.roles.title', 'Управління ролями'), path: '/admin/roles' },
-        { icon: Palette, label: t('admin.branding.title', 'Управління брендом'), path: '/admin/branding' },
-        { icon: Settings, label: t('admin.translations.title', 'Переклади'), path: '/admin/translations' },
+        // Управління брендом доступне тільки для SuperAdmin
+        ...(profile?.role === 'superadmin' ? [{ icon: Palette, label: t('admin.branding.title', 'Управління брендом'), path: '/admin/branding' }] : []),
+        // Переклади видалено - налаштування через код
         { icon: Images, label: t('admin.gallery', 'Галерея'), path: '/admin/gallery' },
         { icon: Calendar, label: t('admin.events', 'Події'), path: '/admin/events' },
         { icon: Users, label: t('admin.team', 'Команда'), path: '/admin/team' },

@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { UserCog, RefreshCw, History, Shield, AlertTriangle, Ban, CheckCircle, XCircle, Eye } from 'lucide-react';
 import { getRoleDisplayName, hasAdminAccess } from '@/utils/auth';
 import RoleChangeHistory from '@/components/admin/RoleChangeHistory';
+import RoleChangeHistoryModal from '@/components/admin/RoleChangeHistoryModal';
+import { useActivityLog, ActivityLogItem } from '@/hooks/useActivityLog';
 import { RolePill } from '@/components/admin/RolePill';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import UserProfileModal from '@/components/admin/UserProfileModal';
@@ -52,6 +54,7 @@ const RoleManager = () => {
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [roleChanges, setRoleChanges] = useState<RoleChange[]>([]);
     const [showHistory, setShowHistory] = useState(false);
+    const { logs: activityLogs } = useActivityLog(100); // Получаем логи действий (USER_BAN, USER_UNBAN)
     
     // User profile modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -815,39 +818,20 @@ const RoleManager = () => {
                                 <History className="h-5 w-5 text-teal-300" />
                                 <h3 className="text-[16px] font-semibold text-white font-sans">Історія змін</h3>
                             </header>
-                            <Dialog open={showHistory} onOpenChange={setShowHistory}>
-                                <Button
-                                    variant="outline"
-                                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#46D6C8]/20 bg-black/30 p-3 backdrop-blur-sm text-gray-300 transition-all duration-200 hover:bg-[#46D6C8]/30 hover:text-[#46D6C8] hover:shadow-[0_0_15px_rgba(70,214,200,0.2)] font-sans cursor-target"
-                                    onClick={() => setShowHistory(true)}
-                                >
-                                    <History className="h-4 w-4" />
-                                    Переглянути історію змін ролей
-                                </Button>
-                                <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
-                                    <DialogHeader>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <DialogTitle className="text-2xl font-rajdhani">Role Change History</DialogTitle>
-                                                <DialogDescription>
-                                                    {roleChanges.length > 0
-                                                        ? `Showing ${roleChanges.length} recent role changes`
-                                                        : 'No role changes yet. Change a user role to see history.'}
-                                                </DialogDescription>
-                                            </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={fetchRoleChanges}
-                                            >
-                                                <RefreshCw className="w-4 h-4 mr-2" />
-                                                Refresh
-                                            </Button>
-                                        </div>
-                                    </DialogHeader>
-                                    <RoleChangeHistory data={roleChanges as any} />
-                                </DialogContent>
-                            </Dialog>
+                            <Button
+                                variant="outline"
+                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#46D6C8]/20 bg-black/30 p-3 backdrop-blur-sm text-gray-300 transition-all duration-200 hover:bg-[#46D6C8]/30 hover:text-[#46D6C8] hover:shadow-[0_0_15px_rgba(70,214,200,0.2)] font-sans cursor-target"
+                                onClick={() => setShowHistory(true)}
+                            >
+                                <History className="h-4 w-4" />
+                                Переглянути історію змін ролей
+                            </Button>
+                            <RoleChangeHistoryModal
+                                isOpen={showHistory}
+                                onClose={() => setShowHistory(false)}
+                                data={roleChanges as any}
+                                activityLogs={activityLogs}
+                            />
                         </div>
                     </section>
 

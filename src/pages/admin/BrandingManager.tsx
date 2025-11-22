@@ -1,23 +1,69 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, FormEvent, useEffect } from 'react';
 import LoadingScreen from '@/components/LoadingScreen';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useBranding } from '@/contexts/BrandingContext';
 import { useI18n } from '@/contexts/I18nContext';
-import { Palette, Image, Globe, Type } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Palette, Image as ImageIcon, Globe, Type, AlertTriangle, Shield } from 'lucide-react';
+import ImageUploader from '@/components/admin/ImageUploader';
+import CustomLangSelect from '@/components/admin/CustomLangSelect';
+
+// Компонент Card в киберпанк-стиле
+const Card = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
+    <div className="rounded-xl p-6 border border-[#46D6C8]/20 bg-black/80 backdrop-blur-sm shadow-[0_0_20px_rgba(70,214,200,0.1)]">
+        <h3 className="text-xl font-semibold text-white mb-1">{title}</h3>
+        <p className="text-sm text-gray-400 mb-6">{subtitle}</p>
+        <div className="space-y-4">
+            {children}
+        </div>
+    </div>
+);
 
 const BrandingManager = () => {
     const { settings, updateSettings, loading } = useBranding();
     const { t } = useI18n();
     const { toast } = useToast();
+    const { profile } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Проверка доступа: только superadmin может управлять брендингом
+    const isSuperAdmin = profile?.role?.toLowerCase() === 'superadmin';
+    
+    // Локальное состояние для изображений
+    const [logoUrl, setLogoUrl] = useState(settings?.logo_url || '');
+    const [faviconUrl, setFaviconUrl] = useState(settings?.favicon_url || '');
+    const [ogImageUrl, setOgImageUrl] = useState(settings?.og_image_url || '');
+    
+    // Локальное состояние для слоганов
+    const [taglineUK, setTaglineUK] = useState(settings?.tagline_base || '');
+    const [taglineEN, setTaglineEN] = useState('');
+    const [taglinePL, setTaglinePL] = useState('');
+    
+    // Локальное состояние для языка
+    const [defaultLanguage, setDefaultLanguage] = useState(settings?.default_language || 'uk');
+    
+    // Обновляем локальное состояние при изменении settings (только при первой загрузке или при изменении извне)
+    useEffect(() => {
+        if (settings) {
+            console.log('[BrandingManager] Settings changed, updating local state:', settings);
+            console.log('[BrandingManager] Current defaultLanguage state:', defaultLanguage);
+            console.log('[BrandingManager] Settings default_language:', settings.default_language);
+            
+            // Обновляем только если значение отличается от текущего локального состояния
+            // Это предотвращает перезапись после сохранения
+            if (settings.default_language && settings.default_language !== defaultLanguage) {
+                console.log('[BrandingManager] Updating defaultLanguage from settings');
+                setDefaultLanguage(settings.default_language);
+            }
+            
+            setLogoUrl(settings.logo_url || '');
+            setFaviconUrl(settings.favicon_url || '');
+            setOgImageUrl(settings.og_image_url || '');
+            setTaglineUK(settings.tagline_base || '');
+        }
+    }, [settings?.id, settings?.default_language]); // Обновляем только при изменении id или default_language
 
-    const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSave = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!settings) return;
 
@@ -26,26 +72,39 @@ const BrandingManager = () => {
             const formData = new FormData(e.currentTarget);
             const updates = {
                 site_name: formData.get('site_name') as string,
-                tagline_base: formData.get('tagline_base') as string,
-                logo_url: formData.get('logo_url') as string,
-                favicon_url: formData.get('favicon_url') as string,
-                og_image_url: formData.get('og_image_url') as string,
-                primary_color: formData.get('primary_color') as string,
-                accent_color: formData.get('accent_color') as string,
-                default_language: formData.get('default_language') as string,
+                tagline_base: taglineUK, // Используем украинский как базовый
+                logo_url: logoUrl,
+                favicon_url: faviconUrl,
+                og_image_url: ogImageUrl,
+                // Кольори бренду змінюються через CSS-змінні, не через UI
+                primary_color: settings.primary_color,
+                accent_color: settings.accent_color,
+                default_language: defaultLanguage, // Используем локальное состояние
             };
 
+            console.log('[BrandingManager] Saving updates:', updates);
+            console.log('[BrandingManager] Current defaultLanguage:', defaultLanguage);
+            console.log('[BrandingManager] User role:', profile?.role);
+            console.log('[BrandingManager] Is superadmin:', isSuperAdmin);
+            
             await updateSettings(updates);
+            
+            console.log('[BrandingManager] Settings updated successfully');
+            console.log('[BrandingManager] Updated defaultLanguage:', updates.default_language);
+            
+            // Обновляем локальное состояние после успешного сохранения
+            // Это гарантирует, что значения синхронизированы с базой данных
+            setDefaultLanguage(updates.default_language || defaultLanguage);
 
             toast({
-                title: t('common.success', 'Success'),
-                description: t('admin.branding.saved', 'Branding settings saved successfully'),
+                title: t('common.success', 'Успіх'),
+                description: t('admin.branding.saved', 'Налаштування брендингу збережено успішно'),
             });
         } catch (error) {
             console.error('Error saving branding settings:', error);
             toast({
-                title: t('common.error', 'Error'),
-                description: t('admin.branding.error', 'Failed to save branding settings'),
+                title: t('common.error', 'Помилка'),
+                description: t('admin.branding.error', 'Не вдалося зберегти налаштування брендингу'),
                 variant: 'destructive',
             });
         } finally {
@@ -57,173 +116,186 @@ const BrandingManager = () => {
         return <LoadingScreen label="SCANNING TARGETS…" size={140} />;
     }
 
-    return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold">{t('admin.branding.title', 'Brand Management')}</h1>
-                <p className="text-muted-foreground">
-                    {t('admin.branding.description', 'Customize your site\'s appearance and branding')}
-                </p>
+    // Показываем сообщение о недостаточных правах для не-superadmin пользователей
+    if (!isSuperAdmin) {
+        return (
+            <div className="p-8">
+                <div className="rounded-xl p-8 border border-red-500/20 bg-black/80 backdrop-blur-sm shadow-[0_0_20px_rgba(255,0,0,0.1)] text-center">
+                    <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-2xl font-semibold text-white mb-2">Доступ заборонено</h2>
+                    <p className="text-gray-400 mb-4">
+                        Управління брендингом доступне тільки для користувачів з роллю <span className="text-[#46D6C8] font-semibold">SuperAdmin</span>.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                        Ваша поточна роль: <span className="text-white font-semibold">{profile?.role || 'Невідома'}</span>
+                    </p>
+                </div>
             </div>
+        );
+    }
 
-            <form onSubmit={handleSave} className="space-y-6">
-                {/* Basic Info */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Type className="h-5 w-5" />
-                            {t('admin.branding.basic', 'Basic Information')}
-                        </CardTitle>
-                        <CardDescription>
-                            {t('admin.branding.basic_desc', 'Site name and taglines for different languages')}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div>
-                            <Label htmlFor="site_name">{t('admin.branding.site_name', 'Site Name')}</Label>
-                            <Input
-                                id="site_name"
-                                name="site_name"
-                                defaultValue={settings.site_name}
-                                placeholder="Raven Strike Force"
-                            />
-                        </div>
+    return (
+        <div className="p-8">
+            <h1 className="font-display text-3xl text-white mb-2">Управління брендом</h1>
+            <p className="text-gray-400 mb-8">
+                Налаштування брендингу та зовнішнього вигляду сайту.
+            </p>
 
-                        <div>
-                            <Label htmlFor="tagline_base">{t('admin.branding.tagline_base', 'Base Tagline')}</Label>
-                            <Textarea
-                                id="tagline_base"
-                                name="tagline_base"
-                                defaultValue={settings.tagline_base}
-                                placeholder="Airsoft is more than a game"
-                                className="mt-1"
-                            />
-                            <p className="text-sm text-muted-foreground mt-1">
-                                {t('admin.branding.tagline_help', 'Base tagline text. Translations are managed in the')} <Link to="/admin/translations" className="underline text-primary">{t('admin.branding.translations_link', 'Translations Manager')}</Link>.
-                            </p>
-                        </div>
-                    </CardContent>
+            <form onSubmit={handleSave} className="flex flex-col gap-8">
+                {/* КАРТКА 1: ОСНОВНА ІНФОРМАЦІЯ */}
+                <Card 
+                    title="Основна інформація" 
+                    subtitle="Назва сайту та базовий слоган"
+                >
+                    <div>
+                        <label htmlFor="site_name" className="text-sm font-medium text-white/80 mb-2 block">
+                            Назва сайту
+                        </label>
+                        <input
+                            id="site_name"
+                            name="site_name"
+                            type="text"
+                            defaultValue={settings.site_name}
+                            placeholder="Raven Strike Force"
+                            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 transition-all"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 <strong>Використовується:</strong> Відображається у шапці сайту, на вкладці браузера та у мета-даних.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label htmlFor="tagline_uk" className="text-sm font-medium text-white/80 mb-2 block">
+                            Базовий слоган (UKR)
+                        </label>
+                        <textarea
+                            id="tagline_uk"
+                            name="tagline_uk"
+                            value={taglineUK}
+                            onChange={(e) => setTaglineUK(e.target.value)}
+                            placeholder="Airsoft is more than a game"
+                            rows={3}
+                            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 transition-all resize-none"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 <strong>Використовується:</strong> Відображається на головній сторінці під назвою сайту.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label htmlFor="tagline_en" className="text-sm font-medium text-white/80 mb-2 block">
+                            Базовий слоган (ENG)
+                        </label>
+                        <textarea
+                            id="tagline_en"
+                            name="tagline_en"
+                            value={taglineEN}
+                            onChange={(e) => setTaglineEN(e.target.value)}
+                            placeholder="Airsoft is more than a game"
+                            rows={3}
+                            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 transition-all resize-none"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 <strong>Використовується:</strong> Відображається на головній сторінці для англомовних користувачів.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label htmlFor="tagline_pl" className="text-sm font-medium text-white/80 mb-2 block">
+                            Базовий слоган (PL)
+                        </label>
+                        <textarea
+                            id="tagline_pl"
+                            name="tagline_pl"
+                            value={taglinePL}
+                            onChange={(e) => setTaglinePL(e.target.value)}
+                            placeholder="Airsoft to więcej niż gra"
+                            rows={3}
+                            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 transition-all resize-none"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 <strong>Використовується:</strong> Відображається на головній сторінці для польськомовних користувачів.
+                        </p>
+                    </div>
                 </Card>
 
-                {/* Visual Assets */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Image className="h-5 w-5" />
-                            {t('admin.branding.assets', 'Visual Assets')}
-                        </CardTitle>
-                        <CardDescription>
-                            {t('admin.branding.assets_desc', 'Logos, favicon, and social media images')}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-4">
-                            <div>
-                                <Label htmlFor="logo_url">{t('admin.branding.logo_url', 'Logo URL')}</Label>
-                                <Input
-                                    id="logo_url"
-                                    name="logo_url"
-                                    type="url"
-                                    defaultValue={settings.logo_url || ''}
-                                    placeholder="https://example.com/logo.png"
-                                    className="mt-1"
-                                />
-                            </div>
+                {/* КАРТКА 2: ВІЗУАЛЬНІ РЕСУРСИ */}
+                <Card 
+                    title="Візуальні ресурси" 
+                    subtitle="Логотипи, фавікон та зображення для соцмереж"
+                >
+                    <div>
+                        <ImageUploader
+                            label="Логотип (Світлий)"
+                            currentUrl={logoUrl}
+                            onUpload={setLogoUrl}
+                            bucket="media"
+                            folder="branding/logos"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 <strong>Використовується:</strong> У шапці сайту на світлому фоні або у футері.
+                        </p>
+                    </div>
 
-                            <div>
-                                <Label htmlFor="favicon_url">{t('admin.branding.favicon_url', 'Favicon URL')}</Label>
-                                <Input
-                                    id="favicon_url"
-                                    name="favicon_url"
-                                    type="url"
-                                    defaultValue={settings.favicon_url || ''}
-                                    placeholder="https://example.com/favicon.ico"
-                                    className="mt-1"
-                                />
-                            </div>
+                    <div>
+                        <ImageUploader
+                            label="Фавікон"
+                            currentUrl={faviconUrl}
+                            onUpload={setFaviconUrl}
+                            bucket="media"
+                            folder="branding/favicons"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 <strong>Використовується:</strong> Іконка у вкладці браузера (16x16px або 32x32px).
+                        </p>
+                    </div>
 
-                            <div>
-                                <Label htmlFor="og_image_url">{t('admin.branding.og_image_url', 'Social Media Image URL')}</Label>
-                                <Input
-                                    id="og_image_url"
-                                    name="og_image_url"
-                                    type="url"
-                                    defaultValue={settings.og_image_url || ''}
-                                    placeholder="https://example.com/og-image.jpg"
-                                    className="mt-1"
-                                />
-                            </div>
-                        </div>
-                    </CardContent>
+                    <div>
+                        <ImageUploader
+                            label="Зображення для соцмереж (OG Image)"
+                            currentUrl={ogImageUrl}
+                            onUpload={setOgImageUrl}
+                            bucket="media"
+                            folder="branding/social"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 <strong>Використовується:</strong> Показується, коли посиланням діляться у Telegram, Facebook, X (Twitter).
+                        </p>
+                    </div>
                 </Card>
 
-                {/* Colors */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Palette className="h-5 w-5" />
-                            {t('admin.branding.colors', 'Brand Colors')}
-                        </CardTitle>
-                        <CardDescription>
-                            {t('admin.branding.colors_desc', 'Primary and accent colors for your brand')}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <div>
-                                <Label htmlFor="primary_color">{t('admin.branding.primary_color', 'Primary Color')}</Label>
-                                <Input
-                                    id="primary_color"
-                                    name="primary_color"
-                                    defaultValue={settings.primary_color}
-                                    placeholder="hsl(122 39% 49%)"
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="accent_color">{t('admin.branding.accent_color', 'Accent Color')}</Label>
-                                <Input
-                                    id="accent_color"
-                                    name="accent_color"
-                                    defaultValue={settings.accent_color}
-                                    placeholder="hsl(4 90% 58%)"
-                                />
-                            </div>
-                        </div>
-                    </CardContent>
+                {/* КАРТКА 3: КОЛЬОРИ БРЕНДУ - Приховано для захисту даних */}
+                {/* Кольори бренду змінюються через CSS-змінні, не через UI */}
+
+                {/* КАРТКА 4: НАЛАШТУВАННЯ */}
+                <Card 
+                    title="Налаштування" 
+                    subtitle="Глобальні налаштування сайту"
+                >
+                    <div>
+                        <CustomLangSelect
+                            value={defaultLanguage}
+                            onChange={(value) => {
+                                setDefaultLanguage(value);
+                            }}
+                            label="Мова за замовчуванням"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 <strong>Використовується:</strong> Мова, яка відображається для нових користувачів за замовчуванням.
+                        </p>
+                    </div>
                 </Card>
 
-                {/* Settings */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Globe className="h-5 w-5" />
-                            {t('admin.branding.settings', 'Settings')}
-                        </CardTitle>
-                        <CardDescription>
-                            {t('admin.branding.settings_desc', 'Global site settings')}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div>
-                            <Label htmlFor="default_language">{t('admin.branding.default_language', 'Default Language')}</Label>
-                            <select
-                                id="default_language"
-                                name="default_language"
-                                defaultValue={settings.default_language}
-                                className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
-                            >
-                                <option value="uk">🇺🇦 Ukrainian</option>
-                                <option value="ru">🇷🇺 Russian</option>
-                                <option value="pl">🇵🇱 Polish</option>
-                                <option value="en">🏴󠁧󠁢󠁥󠁮󠁧󠁿 English</option>
-                            </select>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Button type="submit" disabled={isSubmitting} className="w-full">
-                    {isSubmitting ? t('common.loading', 'Loading...') : t('common.save', 'Save Changes')}
-                </Button>
+                {/* КНОПКА ЗБЕРЕЖЕННЯ */}
+                <div className="mt-4 text-center">
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="px-8 py-3 rounded-lg text-lg font-semibold bg-[#46D6C8] text-black shadow-[0_0_20px_rgba(70,214,200,0.6)] transition-all duration-200 hover:opacity-90 hover:shadow-[0_0_30px_rgba(70,214,200,0.8)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSubmitting ? t('common.loading', 'Завантаження...') : t('common.save', 'Зберегти')}
+                    </button>
+                </div>
             </form>
         </div>
     );

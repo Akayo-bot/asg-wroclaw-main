@@ -33,11 +33,12 @@ const TeamManager = lazy(() => import('@/pages/admin/TeamManager'));
 const StatsManager = lazy(() => import('@/pages/admin/StatsManager'));
 const RoleManager = lazy(() => import('@/pages/admin/RoleManager'));
 const BrandingManager = lazy(() => import('@/pages/admin/BrandingManager'));
-const TranslationsManager = lazy(() => import('@/pages/admin/TranslationsManager'));
+// const TranslationsManager = lazy(() => import('@/pages/admin/TranslationsManager')); // Видалено - налаштування через код
 const CreativeAuthPage = lazy(() => import("./pages/CreativeAuthPage"));
 const DebugAuthPage = lazy(() => import("./pages/DebugAuthPage"));
 const RadarLoaderDemo = lazy(() => import("./pages/RadarLoaderDemo"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const TestGallery = lazy(() => import("./pages/TestGallery"));
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,8 @@ const App = () => (
                                             />
                                             <Route path="/auth" element={<CreativeAuthPage />} />
                                             <Route path="/debug/auth" element={<DebugAuthPage />} />
+                                            <Route path="/debug/auth" element={<DebugAuthPage />} />
+                                            <Route path="/test-gallery" element={<TestGallery />} />
                                             <Route path="/demo/radar" element={<RadarLoaderDemo />} />
 
                                             {/* Admin Routes */}
@@ -94,7 +97,8 @@ const App = () => (
                                                 <Route path="stats" element={<StatsManager />} />
                                                 <Route path="roles" element={<RoleManager />} />
                                                 <Route path="branding" element={<BrandingManager />} />
-                                                <Route path="translations" element={<TranslationsManager />} />
+                                                {/* Переклади видалено - налаштування через код */}
+                                                {/* <Route path="translations" element={<TranslationsManager />} /> */}
                                             </Route>
                                             <Route path="*" element={<NotFound />} />
                                         </Routes>

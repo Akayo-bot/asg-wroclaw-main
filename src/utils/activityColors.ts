@@ -6,7 +6,7 @@
  * - Создание (Green-900): Успех, новый контент
  * - Удаление (Red): Опасность, потеря данных
  * - Изменение (Yellow): Изменение, модификация
- * - Управление (Teal #46D6C8): Критическое действие с пользователем/правами
+ * - Управление (Teal #46D6C8): Критическое действие с пользователем/правами (ROLE_UPDATE, USER_BAN, USER_UNBAN)
  * 
  * @param actionType Тип действия из таблицы activity_log.
  * @returns {string} Tailwind CSS класс для цвета фона (например, 'bg-[#46D6C8]').
@@ -27,7 +27,6 @@ export function getActionColor(actionType: string): string {
         case 'EVENT_DELETE':
         case 'GALLERY_DELETE':
         case 'TEAM_DELETE':
-        case 'USER_BAN':
             return 'bg-red-500';
 
         // --- Изменение/Редактирование (Внимание/Желтый) ---
@@ -40,6 +39,7 @@ export function getActionColor(actionType: string): string {
 
         // --- Управление Пользователями (Критический/Teal) ---
         case 'ROLE_UPDATE':
+        case 'USER_BAN':
         case 'USER_UNBAN':
             return 'bg-[#46D6C8]';
 
@@ -70,7 +70,6 @@ export function getActionTextColor(actionType: string): string {
         case 'EVENT_DELETE':
         case 'GALLERY_DELETE':
         case 'TEAM_DELETE':
-        case 'USER_BAN':
             return 'text-red-400';
 
         // --- Изменение/Редактирование (Внимание/Желтый) ---
@@ -83,6 +82,7 @@ export function getActionTextColor(actionType: string): string {
 
         // --- Управление Пользователями (Критический/Teal) ---
         case 'ROLE_UPDATE':
+        case 'USER_BAN':
         case 'USER_UNBAN':
             return 'text-[#46D6C8]';
 

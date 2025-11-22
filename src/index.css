@@ -57,6 +57,57 @@ body {
   background-repeat: no-repeat;
 }
 
+/* DomeGallery scroll lock */
+body.dg-scroll-lock {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+  overscroll-behavior: contain !important;
+}
+
+/* 🔥 "Невбиваний" Скрол-Лок (Global CSS) */
+/* Цей клас запобігає будь-якому скролу на всіх пристроях за допомогою position: fixed */
+.scroll-lock {
+  position: fixed !important; /* Фіксуємо ВЕСЬ viewport */
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important; /* Ігноруємо скрол */
+  touch-action: none !important;
+  overscroll-behavior: contain !important;
+}
+
+/* 🎨 Неоновий Скроллбар (Beautiful Scrollbar) */
+.neon-scrollbar::-webkit-scrollbar {
+  width: 8px; /* Ширина скролбару */
+  height: 8px;
+  background-color: transparent; /* Робить трек прозорим/темним */
+}
+
+/* Стиль для "бігунка" (thumb) */
+.neon-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  /* Використовуємо напівпрозорий Teal, щоб він світився */
+  background-color: rgba(70, 214, 200, 0.4);
+  border: 1px solid rgba(70, 214, 200, 0.6); /* Тонка рамка */
+}
+
+/* Стиль для "бігунка" при наведенні */
+.neon-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(70, 214, 200, 0.7); /* Яскравіше світіння */
+}
+
+/* Firefox scrollbar */
+.neon-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(70, 214, 200, 0.4) transparent;
+}
+
 @layer utilities {
   /* Final overrides for prose + dark theme inside the editor */
   .rich-text-editor.prose-invert p,
@@ -1612,6 +1663,36 @@ body {
     display: inline-block;
     line-height: 1;
     align-self: center;
+  }
+
+  /* Выравнивание индикатора Online в System Status Bar */
+  .status-online-dot {
+    display: inline-block !important;
+    vertical-align: middle !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    align-self: center !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    position: relative !important;
+    top: 0 !important;
+    animation: status-pulse 2s ease-in-out infinite !important;
+  }
+
+  /* Плавная анимация пульсации для индикатора Online */
+  @keyframes status-pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+    50% {
+      transform: scale(0.85);
+      opacity: 0.8;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+    }
   }
 
   /* DayPicker тёмный неон */

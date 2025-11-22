@@ -66,21 +66,51 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     const updateSettings = async (updates: Partial<SiteSettings>) => {
-        if (!settings) return;
+        if (!settings) {
+            console.error('[BrandingContext] Cannot update: settings is null');
+            return;
+        }
 
         try {
-            const { error } = await supabase
+            console.log('[BrandingContext] Updating settings:', {
+                id: settings.id,
+                updates,
+            });
+
+            const { data, error } = await supabase
                 .from('site_settings')
                 .update(updates)
-                .eq('id', settings.id);
+                .eq('id', settings.id)
+                .select();
 
-            if (error) throw error;
+            if (error) {
+                console.error('[BrandingContext] Update error:', {
+                    error,
+                    message: error.message,
+                    details: error.details,
+                    hint: error.hint,
+                    code: error.code,
+                });
+                throw error;
+            }
 
-            setSettings({ ...settings, ...updates });
+            console.log('[BrandingContext] Update successful, returned data:', data);
+
+            // Обновляем локальное состояние с данными из базы
+            const updatedSettings = data && data.length > 0 
+                ? (data[0] as SiteSettings)
+                : { ...settings, ...updates } as SiteSettings;
+            
+            setSettings(updatedSettings);
+            
+            console.log('[BrandingContext] Settings state updated:', updatedSettings);
 
             // Apply colors to CSS variables immediately
             if (updates.primary_color || updates.accent_color) {
-                applyColorsToCSSVariables(updates.primary_color || settings.primary_color, updates.accent_color || settings.accent_color);
+                applyColorsToCSSVariables(
+                    updates.primary_color || updatedSettings.primary_color, 
+                    updates.accent_color || updatedSettings.accent_color
+                );
             }
         } catch (error) {
             console.error('Error updating site settings:', error);

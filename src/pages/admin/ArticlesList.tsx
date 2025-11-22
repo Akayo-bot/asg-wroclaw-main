@@ -410,7 +410,7 @@ const ArticlesList = () => {
                                                         </svg>
                                                     </button>
                                                 </div>
-                                            </div>
+            </div>
                                             {/* Метаинформация */}
                                             <div className="space-y-2 text-sm">
                                                 <div className="flex flex-wrap items-center gap-2">
@@ -431,24 +431,24 @@ const ArticlesList = () => {
                                                             isScheduled ? t('admin.scheduled', 'Заплановано') :
                                                                 t('admin.drafts', 'Чернетка')}
                                                     </span>
-                                                </div>
+            </div>
                                                 <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                                                     <span className="text-slate-400">{t('admin.author', 'Автор')}:</span>
                                                     <span className={`${roleColor} font-medium ${glowClass}`}>
                                                         {authorName}
-                                                    </span>
-                                                </div>
+                                        </span>
+                                    </div>
                                                 <div className="text-xs sm:text-sm text-slate-400">
                                                     {t('admin.updated', 'Оновлено')}: {formatDate(a.updated_at || a.created_at)}
-                                                </div>
-                                            </div>
-                                        </div>
+                                    </div>
+                                </div>
+                                </div>
                                     );
                                 })}
                             </div>
                         </>
-                    )}
-                </div>
+                )}
+            </div>
             </section>
         </AdminShell>
     );
