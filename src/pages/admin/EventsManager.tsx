@@ -2,23 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '@/contexts/I18nContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Plus, CreditCard as Edit, Trash2, Calendar, MapPin, Users, Coins, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
+import SearchBar from '@/components/ui/SearchBar';
+import { NeonPopoverList, NeonOption } from '@/components/admin/NeonPopoverList';
 import { useToast } from '@/hooks/use-toast';
 import LoadingScreen from '@/components/LoadingScreen';
 import { Tables } from '@/integrations/supabase/types';
-import { formatCurrency, formatPlayerLimits } from '@/lib/formatters';
 import EventModal from '@/components/admin/EventModal';
+import EventCard from '@/components/events/EventCard';
+import { Event as UIEvent, EventStatus } from '@/types/Event';
 
-type Event = Tables<'events'>;
+type DBEvent = Tables<'events'>;
 
 interface EventForm {
     title_uk: string;
@@ -53,16 +49,17 @@ interface EventForm {
     main_image_url: string;
     cover_url: string;
     map_url: string;
+    amenities: string[];
 }
 
 const EventsManager = () => {
     const { t, language } = useI18n();
     const { toast } = useToast();
-    const [events, setEvents] = useState<Event[]>([]);
+    const [events, setEvents] = useState<DBEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'all' | 'upcoming' | 'registration_open' | 'completed' | 'cancelled'>('all');
-    const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'full' | 'completed' | 'cancelled'>('all');
+    const [editingEvent, setEditingEvent] = useState<DBEvent | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [formData, setFormData] = useState<EventForm>({
         title_uk: '',
@@ -97,6 +94,7 @@ const EventsManager = () => {
         main_image_url: '',
         cover_url: '',
         map_url: '',
+        amenities: [],
     });
 
     useEffect(() => {
@@ -108,7 +106,13 @@ const EventsManager = () => {
             let query = supabase.from('events').select('*');
 
             if (statusFilter !== 'all') {
-                query = query.eq('status', statusFilter);
+                if (statusFilter === 'open') {
+                    query = query.in('status', ['upcoming', 'registration_open']);
+                } else if (statusFilter === 'full') {
+                    query = query.eq('status', 'registration_closed');
+                } else {
+                    query = query.eq('status', statusFilter);
+                }
             }
 
             query = query.order('start_datetime', { ascending: false });
@@ -271,12 +275,13 @@ const EventsManager = () => {
             main_image_url: '',
             cover_url: '',
             map_url: '',
+            amenities: [],
         });
         setEditingEvent(null);
         setIsDialogOpen(false);
     };
 
-    const editEvent = (event: Event) => {
+    const editEvent = (event: DBEvent) => {
         setEditingEvent(event);
         setFormData({
             title_uk: event.title_uk,
@@ -311,11 +316,12 @@ const EventsManager = () => {
             main_image_url: event.main_image_url || '',
             cover_url: event.cover_url || '',
             map_url: event.map_url || '',
+            amenities: [],
         });
         setIsDialogOpen(true);
     };
 
-    const getTitle = (event: Event) => {
+    const getTitle = (event: DBEvent) => {
         const titles = {
             uk: event.title_uk,
             ru: event.title_ru,
@@ -325,7 +331,7 @@ const EventsManager = () => {
         return titles[language as keyof typeof titles] || event.title_uk;
     };
 
-    const getLocation = (event: Event) => {
+    const getLocation = (event: DBEvent) => {
         const locations = {
             uk: event.location_uk,
             ru: event.location_ru,
@@ -346,20 +352,49 @@ const EventsManager = () => {
         return true;
     });
 
-    const getStatusBadge = (status: string) => {
-        const statusMap = {
-            upcoming: { variant: 'secondary' as const, label: t('events.status.upcoming', 'Upcoming') },
-            registration_open: { variant: 'default' as const, label: t('events.status.registration_open', 'Registration Open') },
-            registration_closed: { variant: 'outline' as const, label: t('events.status.registration_closed', 'Registration Closed') },
-            completed: { variant: 'outline' as const, label: t('events.status.completed', 'Completed') },
-            cancelled: { variant: 'destructive' as const, label: t('events.status.cancelled', 'Cancelled') },
-        };
-        const statusInfo = statusMap[status as keyof typeof statusMap] || statusMap.upcoming;
-        return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
-    };
-
     const handleModalSubmit = async (data: EventForm) => {
         await handleSubmit({ preventDefault: () => { } } as React.FormEvent);
+    };
+
+    // Helper to map DBEvent to UIEvent
+    const mapToUIEvent = (dbEvent: DBEvent): UIEvent => {
+        const dateObj = new Date(dbEvent.start_datetime || dbEvent.event_date); // fallback
+        
+        // Helper to get localized string from dbEvent
+        const getLoc = (keyPrefix: string) => {
+            // @ts-ignore - dynamic access
+            const key = `${keyPrefix}_${language}`;
+            // @ts-ignore
+            return dbEvent[key] || dbEvent[`${keyPrefix}_uk`] || '';
+        };
+
+        const gatheringTime = new Date(dateObj.getTime() - 60 * 60 * 1000).toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' });
+        const startTime = dateObj.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' });
+
+        let status: EventStatus = 'Open';
+        if (dbEvent.status === 'cancelled') status = 'Canceled';
+        if (dbEvent.status === 'completed') status = 'Completed';
+        if (dbEvent.status === 'registration_closed') status = 'Full';
+
+        return {
+            id: dbEvent.id,
+            image_url: dbEvent.main_image_url || 'https://images.unsplash.com/photo-1627916527022-7933930b1b13?q=80&w=2940&auto=format&fit=crop',
+            title: getTitle(dbEvent),
+            date: dateObj.toLocaleDateString(language),
+            location_name: getLocation(dbEvent),
+            location_map_url: dbEvent.map_url || '#',
+            participant_limit: dbEvent.max_players || 0,
+            participants_registered: 0, // Placeholder
+            price: dbEvent.price_amount || 0,
+            currency: dbEvent.price_currency || 'UAH',
+            status: status,
+            gathering_time: gatheringTime,
+            start_time: startTime,
+            duration: '4-6 hours',
+            amenities: ['Parking', 'Rental', 'Tea/Coffee'],
+            game_meta: getLoc('scenario'),
+            rules_safety: getLoc('rules')
+        };
     };
 
     if (loading && events.length === 0) {
@@ -390,74 +425,40 @@ const EventsManager = () => {
                 />
             </div>
 
-            <div className="flex gap-4">
+
+
+            <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
+                    <SearchBar 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
                         placeholder={t('events.search_placeholder', 'Search events...')}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
                     />
                 </div>
 
-                <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
-                    <SelectTrigger className="w-48">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">{t('events.all_statuses', 'All Statuses')}</SelectItem>
-                        <SelectItem value="upcoming">{t('events.status.upcoming', 'Upcoming')}</SelectItem>
-                        <SelectItem value="registration_open">{t('events.status.registration_open', 'Registration Open')}</SelectItem>
-                        <SelectItem value="registration_closed">{t('events.status.registration_closed', 'Registration Closed')}</SelectItem>
-                        <SelectItem value="completed">{t('events.status.completed', 'Completed')}</SelectItem>
-                        <SelectItem value="cancelled">{t('events.status.cancelled', 'Cancelled')}</SelectItem>
-                    </SelectContent>
-                </Select>
+                <NeonPopoverList
+                    value={statusFilter}
+                    onChange={(v) => setStatusFilter(v as any)}
+                    options={[
+                        { id: "all", label: t('events.all_statuses', 'All Statuses'), textColor: "text-neutral-300", hoverColor: "teal" },
+                        { id: "open", label: "Открыт набор", textColor: "text-emerald-400", hoverColor: "emerald" },
+                        { id: "full", label: "Мест нет", textColor: "text-amber-400", hoverColor: "amber" },
+                        { id: "completed", label: "Завершено", textColor: "text-slate-400", hoverColor: "teal" },
+                        { id: "cancelled", label: "Отменено", textColor: "text-rose-400", hoverColor: "rose" },
+                    ]}
+                    color="teal"
+                    minW={180}
+                />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredEvents.map((event) => (
-                    <Card key={event.id} className="hover:shadow-lg transition-shadow">
-                        <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <CardTitle className="text-lg line-clamp-2">{getTitle(event)}</CardTitle>
-                                {getStatusBadge(event.status)}
-                            </div>
-                            <div className="flex items-center text-sm text-muted-foreground gap-4">
-                                <div className="flex items-center gap-1">
-                                    <Calendar className="h-4 w-4" />
-                                    {event.start_datetime ? new Date(event.start_datetime).toLocaleDateString(language === 'uk' ? 'uk-UA' : language === 'ru' ? 'ru-RU' : language === 'pl' ? 'pl-PL' : 'en-US') : 'No date'}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <MapPin className="h-4 w-4" />
-                                    {getLocation(event)}
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-1">
-                                        <Users className="h-4 w-4" />
-                                        {formatPlayerLimits(event.limit_mode, event.min_players, event.max_players, 0, language)}
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <Coins className="h-4 w-4" />
-                                        {formatCurrency(event.price_amount, event.price_currency || 'PLN', language)}
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                    <Button variant="outline" size="sm" onClick={() => editEvent(event)}>
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => deleteEvent(event.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                {filteredEvents.map((dbEvent) => (
+                    <EventCard 
+                        key={dbEvent.id} 
+                        event={mapToUIEvent(dbEvent)}
+                        onEdit={() => editEvent(dbEvent)}
+                        onDelete={() => deleteEvent(dbEvent.id)}
+                    />
                 ))}
             </div>
 

@@ -1817,6 +1817,15 @@ body.dg-scroll-lock {
     background: rgba(70,214,200,.35); border-radius: 9999px;
   }
 
+  /* Hide scrollbar utility */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   /* Lottie иконка для основного текста - Teal */
   .rsf-lottie-emerald {
     filter: brightness(1.05) saturate(1.1) contrast(1.05);

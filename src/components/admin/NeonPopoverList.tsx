@@ -53,7 +53,7 @@ export function NeonPopoverList({
                 <button
                     type="button"
                     className={`w-full lg:w-auto inline-flex items-center justify-between rounded-lg
-                               bg-neutral-950/70 px-3 py-2.5 text-sm ring-1
+                               bg-neutral-950/70 px-3 h-10 text-sm ring-1
                                ring-[#46D6C8]/30 transition-all duration-200
                                hover:bg-neutral-900/80 hover:ring-[#46D6C8]/50 focus:outline-none focus:ring-[#46D6C8]/60
                                ${neon}`}

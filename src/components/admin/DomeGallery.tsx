@@ -4,6 +4,7 @@ import { useGesture } from '@use-gesture/react';
 interface ImageItem {
     src: string;
     alt: string;
+    fullSrc?: string;
 }
 
 interface DomeGalleryProps {
@@ -71,7 +72,11 @@ function buildItems(pool: ImageItem[] | string[], seg: number) {
         if (typeof image === 'string') {
             return { src: image, alt: '' };
         }
-        return { src: image.src || '', alt: image.alt || '' };
+        return { 
+            src: image.src || '', 
+            alt: image.alt || '',
+            fullSrc: image.fullSrc 
+        };
     });
 
     const usedImages = Array.from({ length: totalSlots }, (_, i) => normalizedImages[i % normalizedImages.length]);
@@ -92,7 +97,8 @@ function buildItems(pool: ImageItem[] | string[], seg: number) {
     return coords.map((c, i) => ({
         ...c,
         src: usedImages[i].src,
-        alt: usedImages[i].alt
+        alt: usedImages[i].alt,
+        fullSrc: usedImages[i].fullSrc
     }));
 }
 
@@ -400,7 +406,7 @@ export default function DomeGallery({
             el.style.visibility = 'hidden';
             el.style.zIndex = '0';
 
-            const rawSrc = (parent as any).dataset.src || el.querySelector('img')?.getAttribute('src') || '';
+            const rawSrc = (parent as any).dataset.fullSrc || (parent as any).dataset.src || el.querySelector('img')?.getAttribute('src') || '';
             const rawAlt = (parent as any).dataset.alt || el.querySelector('img')?.getAttribute('alt') || '';
 
             // Calculate dynamic dimensions based on aspect ratio for desktop
@@ -448,12 +454,13 @@ export default function DomeGallery({
             overlay.style.opacity = '0';
             overlay.style.willChange = 'transform, opacity';
             overlay.style.transformOrigin = 'top left';
-            overlay.style.transition = `transform ${enlargeTransitionMs}ms ease, opacity ${enlargeTransitionMs}ms ease, border-radius ${enlargeTransitionMs}ms ease, clip-path ${enlargeTransitionMs}ms ease`;
+            // Removed clip-path from transition for performance
+            overlay.style.transition = `transform ${enlargeTransitionMs}ms ease, opacity ${enlargeTransitionMs}ms ease, border-radius ${enlargeTransitionMs}ms ease`;
             overlay.style.borderRadius = openedImageBorderRadius;
             overlay.style.overflow = 'hidden';
             overlay.style.setProperty('border-radius', openedImageBorderRadius, 'important');
             overlay.style.setProperty('overflow', 'hidden', 'important');
-            overlay.style.setProperty('clip-path', `inset(0 round ${openedImageBorderRadius})`, 'important');
+            // Removed clip-path setting
             overlay.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)';
 
             // Create image container using background-image for proper border-radius clipping
@@ -586,7 +593,7 @@ export default function DomeGallery({
             overlay.style.transform = `translate(${tx0}px, ${ty0}px) scale(${validSx0}, ${validSy0})`;
             overlay.style.borderRadius = compensatedRadius;
             overlay.style.setProperty('border-radius', compensatedRadius, 'important');
-            overlay.style.setProperty('clip-path', `inset(0 round ${compensatedRadius})`, 'important');
+            // Removed clip-path setting
 
             setTimeout(() => {
                 if (!overlay.parentElement) return;
@@ -596,7 +603,7 @@ export default function DomeGallery({
                 // Animate to normal radius
                 overlay.style.borderRadius = openedImageBorderRadius;
                 overlay.style.setProperty('border-radius', openedImageBorderRadius, 'important');
-                overlay.style.setProperty('clip-path', `inset(0 round ${openedImageBorderRadius})`, 'important');
+                // Removed clip-path setting
 
                 rootRef.current?.setAttribute('data-enlarging', 'true');
             }, 16);
@@ -796,7 +803,7 @@ export default function DomeGallery({
         border-radius: ${openedImageBorderRadius};
         overflow: hidden;
         box-shadow: 0 10px 30px rgba(0,0,0,.35);
-        transition: all ${enlargeTransitionMs}ms ease-out;
+        transition: left ${enlargeTransitionMs}ms ease-out, top ${enlargeTransitionMs}ms ease-out, width ${enlargeTransitionMs}ms ease-out, height ${enlargeTransitionMs}ms ease-out, opacity ${enlargeTransitionMs}ms ease-out, border-radius ${enlargeTransitionMs}ms ease-out;
         pointer-events: none;
         margin: 0;
         transform: none;
@@ -1036,6 +1043,7 @@ export default function DomeGallery({
                                     key={`${it.x},${it.y},${i}`}
                                     className="sphere-item absolute m-auto"
                                     data-src={it.src}
+                                    data-full-src={it.fullSrc}
                                     data-alt={it.alt}
                                     data-offset-x={it.x}
                                     data-offset-y={it.y}

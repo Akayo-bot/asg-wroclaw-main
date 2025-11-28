@@ -9,6 +9,7 @@ import { Tables } from '@/integrations/supabase/types';
 import DomeGallery from '@/components/admin/DomeGallery';
 import ImageUploader from '@/components/admin/ImageUploader';
 import CustomSelect from '@/components/admin/CustomSelect';
+import GalleryCard from '@/components/admin/GalleryCard';
 
 type GalleryItem = Tables<'gallery_items'> & {
     event?: {
@@ -27,6 +28,7 @@ interface GalleryForm {
     title_uk: string;
     description_uk: string;
     file_url: string;
+    file_urls?: string[];
     file_type: string;
     thumbnail_url: string;
     event_id: string | null;
@@ -275,9 +277,8 @@ const GalleryManager = () => {
             // 1. 🔥 Запитуємо ВСІ доступні фотографії (або більшу вибірку, наприклад, 100)
             const { data, error } = await supabase
                 .from('gallery_items')
-                .select('file_url, title_uk, title_en, title_ru, title_pl')
-                .eq('file_type', 'image') // Тільки зображення
-                .limit(100); // Завантажуємо до 100 для більшого вибору
+                .select('file_url, thumbnail_url, title_uk, title_en, title_ru, title_pl')
+                .eq('file_type', 'image'); // Тільки зображення
 
             if (error) {
                 console.error('Error fetching dome images:', error);
@@ -286,12 +287,13 @@ const GalleryManager = () => {
             }
 
             const availableImages = (data || []).map(item => ({
-                src: item.file_url,
-                alt: item.title_uk || item.title_en || item.title_ru || item.title_pl || 'Gallery image'
+                src: item.thumbnail_url || item.file_url,
+                alt: item.title_uk || item.title_en || item.title_ru || item.title_pl || 'Gallery image',
+                fullSrc: item.file_url
             }));
 
             // 2. 🔥 Якщо фотографій менше 34, створюємо випадкову "начинку"
-            const finalDomeImages: Array<{ src: string; alt: string }> = [];
+            const finalDomeImages: Array<{ src: string; alt: string; fullSrc?: string }> = [];
             const numSlots = 34; // Кількість плиток у сфері
 
             if (availableImages.length > 0) {
@@ -449,37 +451,60 @@ const GalleryManager = () => {
                     throw new Error('User ID not found. Please log in again.');
                 }
 
-                console.log('Inserting gallery item with payload:', {
-                    ...payload,
-                    uploaded_by: userId,
-                });
+                // 🔥 MULTIPLE FILES CREATION
+                if (formData.file_urls && formData.file_urls.length > 0) {
+                    console.log('Creating multiple gallery items:', formData.file_urls.length);
+                    
+                    const createPromises = formData.file_urls.map(url => {
+                        return supabase
+                            .from('gallery_items')
+                            .insert({
+                                ...payload,
+                                file_url: url, // Override with specific URL
+                                uploaded_by: userId,
+                            });
+                    });
 
-                const { data, error } = await supabase
-                    .from('gallery_items')
-                    .insert({
+                    const results = await Promise.all(createPromises);
+                    
+                    // Check for errors
+                    const errors = results.filter(r => r.error).map(r => r.error);
+                    if (errors.length > 0) {
+                        console.error('Some items failed to create:', errors);
+                        throw errors[0]; // Throw first error
+                    }
+
+                    toast({
+                        title: t('common.success', 'Успіх'),
+                        description: t('gallery.created_multiple', `Створено ${formData.file_urls.length} елементів`),
+                    });
+
+                } else {
+                    // SINGLE FILE CREATION (Legacy/Fallback)
+                    console.log('Inserting gallery item with payload:', {
                         ...payload,
                         uploaded_by: userId,
-                    })
-                    .select()
-                    .single();
-
-                if (error) {
-                    console.error('Supabase insert error:', error);
-                    console.error('Error details:', {
-                        message: error.message,
-                        details: error.details,
-                        hint: error.hint,
-                        code: error.code,
                     });
-                    throw error;
+
+                    const { data, error } = await supabase
+                        .from('gallery_items')
+                        .insert({
+                            ...payload,
+                            uploaded_by: userId,
+                        })
+                        .select()
+                        .single();
+
+                    if (error) {
+                        console.error('Supabase insert error:', error);
+                        throw error;
+                    }
+
+                    toast({
+                        title: t('common.success', 'Успіх'),
+                        description: t('gallery.created', 'Елемент галереї створено успішно'),
+                    });
                 }
-
-                console.log('Successfully inserted gallery item:', data);
-
-                toast({
-                    title: t('common.success', 'Успіх'),
-                    description: t('gallery.created', 'Елемент галереї створено успішно'),
-                });
             }
 
             resetForm();
@@ -546,6 +571,7 @@ const GalleryManager = () => {
             title_uk: '',
             description_uk: '',
             file_url: '',
+            file_urls: [],
             file_type: 'image',
             thumbnail_url: '',
             event_id: null,
@@ -769,90 +795,18 @@ const GalleryManager = () => {
                     }
                 </h2>
 
+
+
                 {/* 🔥 КОМПАКТНИЙ СПИСОК: Використовуємо CSS Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {filteredItems.map((item) => (
-                        <div
+                        <GalleryCard
                             key={item.id}
-                            className="relative rounded-xl overflow-hidden 
-                                   bg-black/60 backdrop-blur-sm border border-white/10 
-                                   transition-all duration-300 
-                                   group hover:border-[#46D6C8]/50"
-                        >
-                            {/* Блок Зображення */}
-                            <div className="relative h-48 w-full overflow-hidden">
-                                {item.file_type.startsWith('image') ? (
-                                    <img
-                                        src={item.thumbnail_url || item.file_url}
-                                        alt={getTitle(item)}
-                                        className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-[1.03]"
-                                    />
-                                ) : (
-                                    <div className="flex items-center justify-center h-full bg-black/40">
-                                        <Video className="h-12 w-12 text-gray-400" />
-                                    </div>
-                                )}
-
-                                {/* Іконка типу файлу */}
-                                <span className="absolute top-2 right-2 text-xs font-medium px-2 py-1 rounded bg-black/80 text-white/80 backdrop-blur-sm">
-                                    {item.file_type.startsWith('image') ? (
-                                        <span className="flex items-center gap-1">
-                                            <ImageIcon className="h-3 w-3" />
-                                            Image
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center gap-1">
-                                            <Video className="h-3 w-3" />
-                                            Video
-                                        </span>
-                                    )}
-                                </span>
-                            </div>
-
-                            {/* Текст та Футер */}
-                            <div className="p-3">
-                                <h3 className="text-base font-semibold text-white truncate mb-1">
-                                    {getTitle(item)}
-                                </h3>
-
-                                {/* 🔥 НОВЕ: Зв'язок з подією */}
-                                {item.event && (
-                                    <p className="text-xs text-[#46D6C8] mb-1 truncate">
-                                        {getEventTitle(item.event)}
-                                    </p>
-                                )}
-
-                                <p className="text-xs text-gray-400 mb-2">
-                                    {new Date(item.created_at).toLocaleDateString()}
-                                </p>
-
-                                {/* 🔥 КНОПКИ ДІЙ (Вони ПРИХОВАНІ за замовчуванням) */}
-                                <div
-                                    className="absolute inset-x-0 bottom-0 
-                                           bg-black/80 backdrop-blur-sm 
-                                           flex justify-end p-3 space-x-2 
-                                           opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                                >
-                                    {/* Кнопка Редагування (Edit) */}
-                                    <button
-                                        onClick={() => editItem(item)}
-                                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white hover:text-[#46D6C8] transition-all"
-                                        title={t('gallery.edit_item', 'Edit')}
-                                    >
-                                        <Edit className="w-5 h-5" />
-                                    </button>
-
-                                    {/* Кнопка Видалення (Delete) */}
-                                    <button
-                                        onClick={() => deleteItem(item.id)}
-                                        className="p-2 rounded-lg bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 transition-all"
-                                        title={t('gallery.delete', 'Delete')}
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                            item={item}
+                            language={language}
+                            onEdit={editItem}
+                            onDelete={deleteItem}
+                        />
                     ))}
                 </div>
 
@@ -915,9 +869,11 @@ const GalleryManager = () => {
                                         label="Медіафайл"
                                         currentUrl={formData.file_url}
                                         onUpload={(url) => setFormData({ ...formData, file_url: url })}
+                                        onUploadMany={(urls) => setFormData({ ...formData, file_urls: urls })}
                                         bucket="media"
                                         folder="gallery"
                                         fileType={formData.file_type as 'image' | 'video'}
+                                        multiple={!editingItem}
                                     />
 
                                     {/* 🔥 Dropdown Типу Файлу (Кастомний) */}
@@ -1028,7 +984,7 @@ const GalleryManager = () => {
                                     e.preventDefault();
                                     handleSubmit(e as any);
                                 }}
-                                disabled={loading || !formData.file_url}
+                                disabled={loading || (!formData.file_url && (!formData.file_urls || formData.file_urls.length === 0))}
                                 className="px-4 py-2 rounded-lg bg-[#46D6C8] text-black font-semibold hover:opacity-90 hover:shadow-[0_0_30px_rgba(70,214,200,0.8)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? t('common.loading', 'Завантаження...') : t('common.save', 'Зберегти')}

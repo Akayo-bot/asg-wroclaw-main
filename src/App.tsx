@@ -39,6 +39,7 @@ const DebugAuthPage = lazy(() => import("./pages/DebugAuthPage"));
 const RadarLoaderDemo = lazy(() => import("./pages/RadarLoaderDemo"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TestGallery = lazy(() => import("./pages/TestGallery"));
+const EventsList = lazy(() => import("./pages/EventsList"));
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,7 @@ const App = () => (
                                             <Route path="/debug/auth" element={<DebugAuthPage />} />
                                             <Route path="/debug/auth" element={<DebugAuthPage />} />
                                             <Route path="/test-gallery" element={<TestGallery />} />
+                                            <Route path="/events-test" element={<EventsList />} />
                                             <Route path="/demo/radar" element={<RadarLoaderDemo />} />
 
                                             {/* Admin Routes */}
