@@ -95,7 +95,7 @@ const PasswordChangeForm = () => {
     <div className="space-y-6">
       {/* Force password change alert for specific user */}
       {needsPasswordChange && (
-        <Alert className="border-destructive">
+        <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <strong>Security Alert:</strong> Your password was compromised and needs to be changed immediately for security reasons.

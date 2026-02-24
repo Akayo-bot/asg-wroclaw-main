@@ -1,9 +1,11 @@
-import React, { useRef, MouseEvent, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface UserProfileModalProps {
     user: {
         id: string;
         display_name: string | null;
+        real_name?: string | null;
         email?: string;
         avatar_url?: string | null;
         role: 'superadmin' | 'admin' | 'editor' | 'user';
@@ -117,38 +119,7 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
     // 🔥 Калібрування: "домашня позиція" телефону (коли модалка відкривається)
     const homeRotation = useRef<{ beta: number; gamma: number } | null>(null);
 
-    // "Сила" згладжування. (0.05 = повільніше і плавніше, 0.1 = швидше, 0.9 = швидко і різко)
-    const easingFactor = 0.12; // Зробимо жвавіше
-
-    // --- 1. ЛОГІКА ДЛЯ МИШІ (Десктоп) ---
-    const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-        // 🔥 ФІКС №1: Ігноруємо фальшиві "тапи" на телефонах
-        if (isTouchDevice || !modalRef.current) return;
-
-        const rect = modalRef.current.getBoundingClientRect();
-        
-        // Координати миші відносно центру картки
-        const x = e.clientX - rect.left - rect.width / 2;
-        const y = e.clientY - rect.top - rect.height / 2;
-
-        // Максимальний нахил (у градусах)
-        const maxRotation = 12; // Збільшуємо максимальний нахил 
-
-        // Розрахунок обертання
-        // (x / (rect.width / 2)) дає нам значення від -1 до 1
-        const rotateY = (x / (rect.width / 2)) * maxRotation;
-        const rotateX = -(y / (rect.height / 2)) * maxRotation; // Мінус, бо вісь Y інвертована
-
-        // 🔥 ЗМІНА: Ми більше не торкаємось CSS. Ми просто ВСТАНОВЛЮЄМО ЦІЛЬ.
-        targetRotation.current = { x: rotateX, y: rotateY };
-    };
-
-    const handleMouseLeave = () => {
-        // 🔥 ФІКС №1: Також ігноруємо на телефонах
-        if (isTouchDevice) return;
-        // 🔥 ЗМІНА: Повертаємо ЦІЛЬ в 0. Анімація зробить решту.
-        targetRotation.current = { x: 0, y: 0 };
-    };
+    const easingFactor = 0.12;
 
     // --- 2. ЛОГІКА ДЛЯ ГІРОСКОПА (Телефон) ---
     const orientationHandler = (event: DeviceOrientationEvent) => {
@@ -199,24 +170,16 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
         }
     };
 
-    // --- 3. ГОЛОВНИЙ `useEffect` (Цикл анімації + Блокування скролу) ---
     useEffect(() => {
-        // Блокуємо скрол
         const originalOverflow = window.getComputedStyle(document.body).overflow;
         const originalPaddingRight = window.getComputedStyle(document.body).paddingRight;
-        
         document.body.style.overflow = 'hidden';
-        
-        // На мобільних пристроях також блокуємо touchmove
-        const preventTouchMove = (e: TouchEvent) => {
-            e.preventDefault();
-        };
-        
+
+        const preventTouchMove = (e: TouchEvent) => { e.preventDefault(); };
         if (isTouchDevice) {
             document.body.addEventListener('touchmove', preventTouchMove, { passive: false });
         }
 
-        // Налаштовуємо гіроскоп (як і раніше)
         // @ts-ignore
         if (isTouchDevice && typeof DeviceOrientationEvent.requestPermission === 'function') {
             setNeedsGyroPermission(true);
@@ -224,41 +187,44 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
             window.addEventListener('deviceorientation', orientationHandler);
         }
 
-        // 🔥 НОВЕ: Запускаємо анімаційний цикл
+        const maxRotation = 12;
+        const onMouseMove = (e: globalThis.MouseEvent) => {
+            if (isTouchDevice || !modalRef.current) return;
+            const rect = modalRef.current.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            const rotateY = (x / (rect.width / 2)) * maxRotation;
+            const rotateX = -(y / (rect.height / 2)) * maxRotation;
+            targetRotation.current = { x: rotateX, y: rotateY };
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+
         const animate = () => {
             if (!modalRef.current) return;
-
-            // Розрахунок згладжування (Lerp)
             currentRotation.current.x += (targetRotation.current.x - currentRotation.current.x) * easingFactor;
             currentRotation.current.y += (targetRotation.current.y - currentRotation.current.y) * easingFactor;
-
-            // Застосовуємо плавні, проміжні значення до CSS
             modalRef.current.style.transform = `perspective(1000px) rotateX(${currentRotation.current.x}deg) rotateY(${currentRotation.current.y}deg)`;
-
-            // Продовжуємо цикл
             animationFrameId.current = requestAnimationFrame(animate);
         };
-        
-        // Запускаємо цикл
         animationFrameId.current = requestAnimationFrame(animate);
 
-        // Очищення
         return () => {
-            document.body.style.overflow = originalOverflow; // Повертаємо скрол
+            document.body.style.overflow = originalOverflow;
             document.body.style.paddingRight = originalPaddingRight;
             if (isTouchDevice) {
                 document.body.removeEventListener('touchmove', preventTouchMove);
             }
-            window.removeEventListener('deviceorientation', orientationHandler); // Вимикаємо гіроскоп
+            document.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('deviceorientation', orientationHandler);
             if (animationFrameId.current) {
-                cancelAnimationFrame(animationFrameId.current); // Зупиняємо анімацію
+                cancelAnimationFrame(animationFrameId.current);
             }
-            // Скидаємо калібрування для наступного відкриття
             homeRotation.current = null;
             targetRotation.current = { x: 0, y: 0 };
             currentRotation.current = { x: 0, y: 0 };
         };
-    }, [isTouchDevice]); // Залежності залишаються тими ж
+    }, [isTouchDevice]);
 
     // Определяем цвет текста роли на основе роли пользователя
     const safeRole = user.role?.toLowerCase() || 'user';
@@ -278,28 +244,21 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
             roleTextColor = 'text-[#808080]'; // Gray
     }
 
-    return (
-        // 1. Backdrop (Фон-затемнення зі склом)
+    return createPortal(
         <div
             onClick={onClose}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            // 🔥 ОБРОБНИКИ МИШІ ПРИКРІПЛЕНІ ДО ФОНУ
-            onMouseMove={handleMouseMove} 
-            onMouseLeave={handleMouseLeave}
+            className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pl-[calc(1rem_+_var(--admin-sidebar-width,0px))] transition-all duration-300"
+            style={{ cursor: 'none' }}
         >
-            {/* 🔥 ЗОВНІШНЯ КАРТКА ("Рамка")
-                Вона відповідає ТІЛЬКИ за 3D-нахил. У неї НЕМАЄ скролу.
-            */}
             <div
-                ref={modalRef} // <--- ПРИВ'ЯЗУЄМО REF
-                onClick={(e) => e.stopPropagation()} // Не закривати при кліку на картку
+                ref={modalRef}
+                onClick={(e) => e.stopPropagation()}
                 className="relative w-full max-w-sm lg:max-w-md rounded-2xl border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-lg shadow-[0_0_40px_rgba(70,214,200,0.2)]"
-                style={{ transformStyle: 'preserve-3d' }} // <--- Потрібно для 3D
+                style={{ transformStyle: 'preserve-3d' }}
             >
-                {/* Кнопка закриття (Х) */}
                 <button
-                    onClick={onClose}
-                    className="absolute top-3 right-3 text-white/50 hover:text-white transition-colors z-10"
+                    onClick={(e) => { e.stopPropagation(); onClose(); }}
+                    className="absolute top-3 right-3 p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-all z-10"
                     aria-label="Закрити"
                 >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -331,6 +290,7 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
 
                     {/* Інформація (дві колонки) */}
                     <dl className="grid grid-cols-1 gap-x-4 lg:gap-x-6 gap-y-2 lg:gap-y-3 sm:grid-cols-2">
+                        {/* Роль | Статус */}
                         <div className="sm:col-span-1">
                             <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Роль:</dt>
                             <dd className="mt-1 lg:mt-2">
@@ -343,10 +303,16 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
                                 <StatusPill status={user.status || 'active'} />
                             </dd>
                         </div>
+                        {/* Реальне ім'я | Позивний */}
                         <div className="sm:col-span-1">
-                            <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Позывной:</dt>
+                            <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Реальне ім'я:</dt>
+                            <dd className="text-base lg:text-lg text-white font-sans mt-1 lg:mt-2">{user.real_name || '—'}</dd>
+                        </div>
+                        <div className="sm:col-span-1">
+                            <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Позивний:</dt>
                             <dd className="text-base lg:text-lg text-white font-sans mt-1 lg:mt-2">{user.callsign || '—'}</dd>
                         </div>
+                        {/* Телефон */}
                         <div className="sm:col-span-1">
                             <dt className="text-sm lg:text-base font-medium text-gray-400 font-sans">Телефон:</dt>
                             <dd className="text-base lg:text-lg text-white font-sans mt-1 lg:mt-2">{user.phone || '—'}</dd>
@@ -389,6 +355,7 @@ export default function UserProfileModal({ user, onClose }: UserProfileModalProp
                     )}
                 </div> {/* Кінець внутрішнього контейнера скролу */}
             </div> {/* Кінець зовнішньої "рамки" 3D */}
-        </div>
+        </div>,
+        document.body
     );
 }

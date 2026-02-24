@@ -2,14 +2,23 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useI18n } from '@/contexts/I18nContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Edit, Trash2, Image as ImageIcon, Video, Search, ChevronDown, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, Image as ImageIcon, Video, Search, ChevronDown, Calendar, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import LoadingScreen from '@/components/LoadingScreen';
+import RadarLoader from '@/components/RadarLoader';
 import { Tables } from '@/integrations/supabase/types';
 import DomeGallery from '@/components/admin/DomeGallery';
 import ImageUploader from '@/components/admin/ImageUploader';
-import CustomSelect from '@/components/admin/CustomSelect';
 import GalleryCard from '@/components/admin/GalleryCard';
+import AdminShell from '@/components/admin/AdminShell';
+import { SearchBarNeon } from '@/components/admin/SearchBarNeon';
+import { NeonPopoverList } from '@/components/admin/NeonPopoverList';
+import { MarqueeText } from "@/components/ui/MarqueeText";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import Card from '@/components/admin/Card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { GlassConfirmDialog } from '@/components/ui/GlassConfirmDialog';
 
 type GalleryItem = Tables<'gallery_items'> & {
     event?: {
@@ -33,168 +42,6 @@ interface GalleryForm {
     thumbnail_url: string;
     event_id: string | null;
 }
-
-// Кастомный Dropdown для фильтра событий
-const EventFilterDropdown = ({
-    value,
-    onChange,
-    events
-}: {
-    value: string | null;
-    onChange: (value: string | null) => void;
-    events: Event[];
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const { t, language } = useI18n();
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    const getEventTitle = (event: Event) => {
-        const titles = {
-            uk: event.title_uk,
-            ru: event.title_ru,
-            pl: event.title_pl,
-            en: event.title_en || event.title_uk,
-        };
-        return titles[language] || event.title_uk || 'Untitled';
-    };
-
-    const formatEventDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('uk-UA', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-        });
-    };
-
-    const options = [
-        { value: null, label: t('gallery.all_events', 'Всі Події') },
-        ...events.map(event => ({
-            value: event.id,
-            label: `${getEventTitle(event)} - ${formatEventDate(event.event_date)}`,
-            event,
-        })),
-    ];
-
-    const selectedOption = options.find(opt => opt.value === value) || options[0];
-
-    // Закрываем dropdown при клике вне его
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-
-        if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [isOpen]);
-
-    return (
-        <div className="relative" ref={dropdownRef}>
-            <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full md:w-64 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white flex justify-between items-center focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 hover:border-[#46D6C8]/30 transition-all"
-            >
-                <span className="truncate">{selectedOption.label}</span>
-                <ChevronDown className={`h-4 w-4 text-gray-400 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`} />
-            </button>
-
-            {isOpen && (
-                <div className="absolute z-50 w-full mt-1 rounded-lg border border-white/10 bg-[#04070A] shadow-xl max-h-60 overflow-y-auto">
-                    {options.map((option) => (
-                        <button
-                            key={option.value || 'all'}
-                            type="button"
-                            onClick={() => {
-                                onChange(option.value);
-                                setIsOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2 cursor-pointer transition-colors first:rounded-t-lg last:rounded-b-lg ${option.value === value
-                                ? 'bg-[#46D6C8] text-black font-semibold shadow-lg'
-                                : 'text-white hover:bg-white/10 hover:text-white'
-                                }`}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
-// Кастомный Dropdown для фильтра типов
-const TypeFilterDropdown = ({ value, onChange }: { value: 'all' | 'image' | 'video'; onChange: (value: 'all' | 'image' | 'video') => void }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const { t } = useI18n();
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    const options = [
-        { value: 'all', label: t('gallery.all_types', 'Всі Типи') },
-        { value: 'image', label: t('gallery.images', 'Фото') },
-        { value: 'video', label: t('gallery.videos', 'Відео') },
-    ];
-
-    const selectedOption = options.find(opt => opt.value === value) || options[0];
-
-    // Закрываем dropdown при клике вне его
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-
-        if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [isOpen]);
-
-    return (
-        <div className="relative" ref={dropdownRef}>
-            <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full md:w-48 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white flex justify-between items-center focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 hover:border-[#46D6C8]/30 transition-all"
-            >
-                <span>{selectedOption.label}</span>
-                <ChevronDown className={`h-4 w-4 text-gray-400 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`} />
-            </button>
-
-            {isOpen && (
-                <div className="absolute z-50 w-full mt-1 rounded-lg border border-white/10 bg-[#04070A] shadow-xl max-h-60 overflow-y-auto">
-                    {options.map((option) => (
-                        <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => {
-                                onChange(option.value as 'all' | 'image' | 'video');
-                                setIsOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2 cursor-pointer transition-colors first:rounded-t-lg last:rounded-b-lg ${option.value === value
-                                ? 'bg-[#46D6C8] text-black font-semibold shadow-lg'
-                                : 'text-white hover:bg-white/10 hover:text-white'
-                                }`}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
 
 const preloadImages = async (images: Array<{ src: string }>) => {
     await Promise.all(
@@ -220,7 +67,7 @@ const GalleryManager = () => {
     const [domeImages, setDomeImages] = useState<Array<{ src: string; alt: string }>>([]);
     const [isLoadingDome, setIsLoadingDome] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [eventFilter, setEventFilter] = useState<string | null>(null);
+    const [eventFilter, setEventFilter] = useState<string>('all');
     const [typeFilter, setTypeFilter] = useState<'all' | 'image' | 'video'>('all');
     const [editingItem, setEditingItem] = useState<GalleryItem | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -233,6 +80,7 @@ const GalleryManager = () => {
         event_id: null,
     });
     const [isMobile, setIsMobile] = useState(false);
+    const [errors, setErrors] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         fetchEvents();
@@ -253,21 +101,6 @@ const GalleryManager = () => {
     useEffect(() => {
         fetchRandomImagesForDome();
     }, []); // Запускаємо лише при монтуванні
-
-    // 🔥 ФІКС БЛОКУВАННЯ СКРОЛУ (JS Side Effect)
-    useEffect(() => {
-        if (isDialogOpen) {
-            // 🔥 НОВИЙ ФІКС: Застосовуємо "броньований" клас до HTML та BODY
-            document.body.classList.add('scroll-lock');
-            document.documentElement.classList.add('scroll-lock'); // Додаємо і до HTML
-
-            // Очищення
-            return () => {
-                document.body.classList.remove('scroll-lock');
-                document.documentElement.classList.remove('scroll-lock');
-            };
-        }
-    }, [isDialogOpen]);
 
     // 🔥 Функція завантаження випадкових зображень для DomeGallery
     // Завантажує ВСІ доступні зображення та заповнює 34 слоти випадковим вибором
@@ -338,7 +171,7 @@ const GalleryManager = () => {
                 .select('*');
 
             // Проверяем, что eventFilter является валидной строкой перед фильтрацией
-            if (eventFilter && typeof eventFilter === 'string' && eventFilter.length > 0) {
+            if (eventFilter && eventFilter !== 'all') {
                 query = query.eq('event_id', eventFilter);
             }
 
@@ -372,7 +205,7 @@ const GalleryManager = () => {
                 try {
                     const { data: events, error: eventsError } = await supabase
                         .from('events')
-                        .select('id, title_uk, title_ru, title_pl, title_en, event_date')
+                        .select('*')
                         .in('id', eventIds);
 
                     if (eventsError) {
@@ -409,6 +242,32 @@ const GalleryManager = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Validation
+        const newErrors: Record<string, boolean> = {};
+        const missingFields = [];
+
+        if (!formData.file_url?.trim() && (!formData.file_urls || formData.file_urls.length === 0)) {
+            newErrors['file_url'] = true;
+            missingFields.push("Медіафайл");
+        }
+        if (!formData.title_uk?.trim()) {
+            newErrors['title_uk'] = true;
+            missingFields.push("Заголовок");
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            toast({
+                variant: "destructive",
+                title: "Помилка валідації",
+                description: `Будь ласка, заповніть наступні поля: ${missingFields.join(", ")}`,
+                className: "bg-[#1a0505]/95 backdrop-blur-md border border-red-500/30 text-red-100 shadow-[0_0_30px_rgba(220,38,38,0.25)] rounded-2xl",
+                duration: 5000,
+            });
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -540,8 +399,13 @@ const GalleryManager = () => {
         }
     };
 
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+    const handleDeleteClick = (id: string) => {
+        setDeleteConfirmId(id);
+    };
+
     const deleteItem = async (id: string) => {
-        if (!confirm(t('gallery.confirm_delete', 'Ви впевнені, що хочете видалити цей елемент?'))) return;
 
         try {
             const { error } = await supabase
@@ -632,7 +496,7 @@ const GalleryManager = () => {
     });
 
     // Группировка по событиям, если выбран фильтр события
-    const selectedEvent = eventFilter ? events.find(e => e.id === eventFilter) : null;
+    const selectedEvent = (eventFilter && eventFilter !== 'all') ? events.find(e => e.id === eventFilter) : null;
     const getEventTitleForFilter = (event: Event) => {
         const titles = {
             uk: event.title_uk,
@@ -645,7 +509,7 @@ const GalleryManager = () => {
 
     // Проверка активных фильтров для показа DomeGallery
     const hasActiveFilters = useMemo(() => {
-        return eventFilter !== null || typeFilter !== 'all' || searchTerm.length > 0;
+        return eventFilter !== 'all' || typeFilter !== 'all' || searchTerm.length > 0;
     }, [eventFilter, typeFilter, searchTerm]);
 
     const domeConfig = useMemo(() => {
@@ -682,169 +546,147 @@ const GalleryManager = () => {
     }
 
     return (
-        <div className="p-8 space-y-8">
-            {/* Шапка Сторінки */}
-            <div className="flex items-center justify-between mb-8">
-                {/* ЛІВА ЧАСТИНА (Заголовок) */}
-                <div>
-                    <h1 className="font-display text-3xl text-white mb-2">
-                        {t('gallery.title', 'Media & Event Archive')}
-                    </h1>
-                    <p className="text-gray-400">
-                        {selectedEvent
-                            ? `${t('gallery.archive', 'Архів')}: ${getEventTitleForFilter(selectedEvent)} - ${formatEventDate(selectedEvent.event_date)}`
-                            : t('gallery.description', 'Manage your gallery images and videos')
-                        }
-                    </p>
-                </div>
+        <AdminShell>
+            <div className="px-3 sm:px-4 lg:px-8 lg:translate-x-[-100px]">
+                {/* Search */}
+                <SearchBarNeon
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder={t('gallery.search_placeholder', 'Search gallery items...')}
+                />
 
-            </div>
-
-            {/* Блок Фільтрів та Пошуку */}
-            <div className="flex flex-col gap-4 mb-8">
-                {/* РЯДОК 1: ФІЛЬТРИ */}
-                <div className="flex flex-wrap items-center gap-4">
-                    {/* Фільтр Подій */}
-                    <div className="w-full sm:w-auto">
-                        <EventFilterDropdown
+                {/* Filters & Actions */}
+                <div className="mx-auto max-w-4xl pb-3 sm:pb-4 mt-3 sm:mt-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                        {/* Event Filter */}
+                        <NeonPopoverList
                             value={eventFilter}
-                            onChange={setEventFilter}
-                            events={events}
+                            onChange={(v) => setEventFilter(v)}
+                            disablePortal={true}
+                            options={[
+                                { id: "all", label: t('gallery.all_events', 'Всі Події'), textColor: "text-neutral-300", hoverColor: "teal" },
+                                ...events.map(event => ({
+                                    id: event.id,
+                                    label: (
+                                        <MarqueeText>
+                                            <span className="text-amber-400 font-semibold text-base whitespace-nowrap">{getEventTitle(event)}</span>
+                                            <span className="text-[#C2C2C2] text-sm whitespace-nowrap ml-2">• {formatEventDate(event.event_date)}</span>
+                                        </MarqueeText>
+                                    ),
+                                    textLabel: `${getEventTitle(event)} - ${formatEventDate(event.event_date)}`,
+                                    textColor: "text-white",
+                                    hoverColor: "emerald"
+                                }))
+                            ]}
+                            color="teal"
+                            minW={320}
                         />
-                    </div>
 
-                    {/* Фільтр Типів Медіа */}
-                    <div className="w-full sm:w-auto">
-                        <TypeFilterDropdown value={typeFilter} onChange={setTypeFilter} />
-                    </div>
+                        {/* Type Filter */}
+                        <NeonPopoverList
+                            value={typeFilter}
+                            onChange={(v) => setTypeFilter(v as any)}
+                            disablePortal={true}
+                            options={[
+                                { id: "all", label: t('gallery.all_types', 'Всі Типи'), textColor: "text-neutral-300", hoverColor: "teal" },
+                                { id: "image", label: t('gallery.images', 'Фото'), textColor: "text-emerald-400", hoverColor: "emerald" },
+                                { id: "video", label: t('gallery.videos', 'Відео'), textColor: "text-amber-400", hoverColor: "amber" },
+                            ]}
+                            color="teal"
+                            minW={140}
+                        />
 
-                    {/* Кнопка "Додати Медіа" */}
-                    <button
-                        onClick={() => { resetForm(); setIsDialogOpen(true); }}
-                        className="w-full sm:w-auto flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold 
-                                   bg-[#46D6C8] text-black 
-                                   transition-all duration-200
-                                   hover:opacity-90 
-                                   shadow-[0_0_15px_rgba(70,214,200,0.5)]"
-                    >
-                        <Plus className="w-5 h-5" />
-                        {t('gallery.add_item', 'Додати Медіа')}
-                    </button>
+                        {/* Add Button */}
+                        <button
+                            type="button"
+                            onClick={() => { resetForm(); setIsDialogOpen(true); }}
+                            className="btn-glass-emerald text-base px-4 py-2.5 hover:ring-2 hover:ring-[#46D6C8]/50 transition-all duration-200 w-full sm:w-auto"
+                        >
+                            <span className="flex items-center justify-center gap-2">
+                                <Plus className="h-4 w-4" />
+                                <span>{t('gallery.add_item', 'Додати Медіа')}</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
 
-                {/* РЯДОК 2: ПОШУК */}
-                <div className="relative w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder={t('gallery.search_placeholder', 'Search gallery items...')}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 rounded-lg 
-                                   bg-white/5 border border-white/10 
-                                   text-white placeholder-gray-400
-                                   focus:outline-none focus:ring-2 focus:ring-[#46D6C8] focus:border-transparent transition-all"
-                    />
-                </div>
-            </div>
+                {/* Content */}
+                <div className="mx-auto max-w-[1400px] py-4 sm:py-6 mt-4 sm:mt-6 relative">
+                    {/* Gradient */}
+                    <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(70,214,200,.08),transparent_70%)] opacity-50 rounded-2xl" />
 
-            {/* УМОВНЕ ВІДОБРАЖЕННЯ: АБО DOME, АБО СПИСОК */}
-            {!hasActiveFilters && (
-                <div className="w-full h-[500px] my-8 rounded-xl overflow-hidden border border-white/10 bg-black/40">
-                    {isLoadingDome ? (
-                        <div className="flex items-center justify-center h-full text-gray-400">
-                            <div className="text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#46D6C8] mx-auto mb-4"></div>
-                                <p>{t('gallery.loading_dome', 'Завантаження галереї...')}</p>
-                            </div>
+                    {/* Dome Gallery (if no filters) */}
+                    {!hasActiveFilters && (
+                        <div className="w-full h-[500px] mb-8 rounded-xl overflow-hidden border border-[#46D6C8]/20 bg-black/40 shadow-[0_0_25px_rgba(70,214,200,0.05)]">
+                            {isLoadingDome ? (
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    <div className="text-center">
+                                        <RadarLoader label={t('gallery.loading_dome', 'Завантаження галереї...')} size={80} />
+                                    </div>
+                                </div>
+                            ) : domeImages.length > 0 ? (
+                                <DomeGallery
+                                    images={domeImages}
+                                    fit={domeConfig.fit}
+                                    fitBasis="auto"
+                                    minRadius={domeConfig.minRadius}
+                                    maxRadius={Infinity}
+                                    padFactor={domeConfig.padFactor}
+                                    overlayBlurColor="#060010"
+                                    maxVerticalRotationDeg={5}
+                                    dragSensitivity={domeConfig.dragSensitivity}
+                                    enlargeTransitionMs={300}
+                                    segments={domeConfig.segments}
+                                    dragDampening={2}
+                                    openedImageWidth={domeConfig.openedImageWidth}
+                                    openedImageHeight={domeConfig.openedImageHeight}
+                                    imageBorderRadius={domeConfig.imageBorderRadius}
+                                    openedImageBorderRadius={domeConfig.openedImageBorderRadius}
+                                    isMobile={isMobile}
+                                />
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    <p>{t('gallery.no_images_for_dome', 'Немає зображень для відображення')}</p>
+                                </div>
+                            )}
                         </div>
-                    ) : domeImages.length > 0 ? (
-                        <DomeGallery
-                            images={domeImages}
-                            fit={domeConfig.fit}
-                            fitBasis="auto"
-                            minRadius={domeConfig.minRadius}
-                            maxRadius={Infinity}
-                            padFactor={domeConfig.padFactor}
-                            overlayBlurColor="#060010"
-                            maxVerticalRotationDeg={5}
-                            dragSensitivity={domeConfig.dragSensitivity}
-                            enlargeTransitionMs={300}
-                            segments={domeConfig.segments}
-                            dragDampening={2}
-                            openedImageWidth={domeConfig.openedImageWidth}
-                            openedImageHeight={domeConfig.openedImageHeight}
-                            imageBorderRadius={domeConfig.imageBorderRadius}
-                            openedImageBorderRadius={domeConfig.openedImageBorderRadius}
-                            isMobile={isMobile}
-                        />
-                    ) : (
-                        <div className="flex items-center justify-center h-full text-gray-400">
-                            <p>{t('gallery.no_images_for_dome', 'Немає зображень для відображення')}</p>
+                    )}
+
+                    {/* Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredItems.map((item) => (
+                            <GalleryCard
+                                key={item.id}
+                                item={item}
+                                language={language}
+                                onEdit={editItem}
+                                onDelete={handleDeleteClick}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Empty State */}
+                    {filteredItems.length === 0 && (
+                        <div className="rounded-xl p-8 border border-white/10 bg-black/60 backdrop-blur-sm text-center">
+                            <p className="text-gray-400">{t('gallery.no_items', 'No gallery items found')}</p>
                         </div>
                     )}
                 </div>
-            )}
 
-            {/* ОСНОВНА ТАБЛИЦЯ/СПИСОК (Завжди видима) */}
-            <div className="mt-8">
-                <h2 className="text-xl font-semibold text-white mb-4">
-                    {selectedEvent
-                        ? `${t('gallery.archive', 'Архів події')}: ${getEventTitleForFilter(selectedEvent)}`
-                        : t('gallery.all_files', 'Всі файли')
-                    }
-                </h2>
-
-
-
-                {/* 🔥 КОМПАКТНИЙ СПИСОК: Використовуємо CSS Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {filteredItems.map((item) => (
-                        <GalleryCard
-                            key={item.id}
-                            item={item}
-                            language={language}
-                            onEdit={editItem}
-                            onDelete={deleteItem}
-                        />
-                    ))}
-                </div>
-
-                {/* Пустий стан */}
-                {filteredItems.length === 0 && (
-                    <div className="rounded-xl p-8 border border-white/10 bg-black/60 backdrop-blur-sm text-center">
-                        <p className="text-gray-400">{t('gallery.no_items', 'No gallery items found')}</p>
-                    </div>
-                )}
-            </div>
-
-            {/* Діалог для додавання/редагування */}
-            {isDialogOpen && (
-                <div
-                    onClick={resetForm}
-                    className="fixed inset-0 z-[500] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-                >
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="relative w-full max-w-2xl rounded-xl border border-[#46D6C8]/20 bg-black/80 backdrop-blur-sm shadow-[0_0_40px_rgba(70,214,200,0.2)] m-4 z-[501] max-h-[90vh] overflow-y-auto neon-scrollbar"
+                {/* Dialog */}
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogContent
+                        className="max-w-2xl bg-[#04070A]/90 border-white/10 backdrop-blur-md p-0 flex flex-col shadow-[0_0_50px_rgba(70,214,200,0.15)] overflow-hidden"
                     >
-                        {/* Кнопка закриття (position: absolute) */}
-                        <button
-                            onClick={resetForm}
-                            className="absolute top-4 right-4 z-10 text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
-                        >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-
-                        {/* 🔥 КОНТЕНТ: Створюємо зміщення (отступ от навбара) */}
-                        <div className="p-6 pt-20">
-                            {/* Заголовок модалки */}
-                            <h2 className="text-xl font-display text-white border-b border-white/10 pb-4 mb-4">
+                        <DialogHeader className="px-6 py-4 bg-[#04070A] relative z-50 shrink-0">
+                            <DialogTitle className="text-xl font-display text-white">
                                 {editingItem ? t('gallery.edit_item', 'Редагувати Медіа') : t('gallery.add_item', 'Додати Медіа')}
-                            </h2>
+                            </DialogTitle>
+                            {/* Top Gradient Overlay inside header container but positioned below border */}
+                            <div className="absolute left-0 right-0 top-full -translate-y-px h-12 bg-gradient-to-b from-[#04070A] via-[#04070A]/80 to-transparent pointer-events-none z-50" />
+                        </DialogHeader>
 
+                        <div className="overflow-y-auto flex-1 neon-scrollbar p-6 relative z-0">
                             <form
                                 onSubmit={handleSubmit}
                                 onKeyDown={(e) => {
@@ -853,124 +695,170 @@ const GalleryManager = () => {
                                         handleSubmit(e);
                                     }
                                 }}
-                                className="space-y-6"
+                                className="space-y-6 pb-4 relative z-10"
                             >
-                                {/* ======================================= */}
-                                {/* БЛОК 1: ЗАВАНТАЖЕННЯ (Upload) */}
-                                {/* ======================================= */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-white mb-2">Файл</h3>
-                                        <p className="text-sm text-gray-400 mb-4">Завантажте фотографію чи відео.</p>
+                                <div className="space-y-6">
+                                    {/* Media File Section */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-semibold text-[#46D6C8] flex items-center gap-2">
+                                            <ImageIcon size={20} className="text-[#46D6C8]" />
+                                            Медіафайл
+                                        </h3>
+                                        
+                                        <ImageUploader
+                                            label="Медіафайл"
+                                            currentUrl={formData.file_url}
+                                            error={!!errors['file_url']}
+                                            onUpload={(url) => {
+                                                setFormData({ ...formData, file_url: url });
+                                                if (errors['file_url']) {
+                                                    setErrors(prev => {
+                                                        const newErrors = { ...prev };
+                                                        delete newErrors['file_url'];
+                                                        return newErrors;
+                                                    });
+                                                }
+                                            }}
+                                            onUploadMany={(urls) => {
+                                                setFormData({ ...formData, file_urls: urls });
+                                                if (errors['file_url']) {
+                                                    setErrors(prev => {
+                                                        const newErrors = { ...prev };
+                                                        delete newErrors['file_url'];
+                                                        return newErrors;
+                                                    });
+                                                }
+                                            }}
+                                            bucket="media"
+                                            folder="gallery"
+                                            fileType={formData.file_type as 'image' | 'video'}
+                                            multiple={!editingItem}
+                                        />
+
+                                        <div className="flex items-center gap-4 mt-4">
+                                            <div className="flex-1 space-y-2">
+                                                <Label className="text-sm font-medium text-white/80 block">
+                                                    Тип файлу
+                                                </Label>
+                                                <NeonPopoverList
+                                                    value={formData.file_type}
+                                                    onChange={(value) => setFormData(prev => ({ ...prev, file_type: value }))}
+                                                    options={[
+                                                        { id: 'image', label: t('gallery.images', 'Фото'), textColor: 'text-emerald-400', hoverColor: 'teal' },
+                                                        { id: 'video', label: t('gallery.videos', 'Відео'), textColor: 'text-amber-400', hoverColor: 'amber' }
+                                                    ]}
+                                                    width={200}
+                                                    minW={140}
+                                                />
+                                            </div>
+                                            <p className="text-sm text-gray-400 flex-shrink-0 mt-6">Вкажіть, що ви завантажуєте.</p>
+                                        </div>
+
+                                        {formData.file_type === 'video' && (
+                                            <ImageUploader
+                                                label="Мініатюра (опціонально)"
+                                                currentUrl={formData.thumbnail_url}
+                                                onUpload={(url) => setFormData({ ...formData, thumbnail_url: url })}
+                                                bucket="media"
+                                                folder="gallery/thumbnails"
+                                            />
+                                        )}
                                     </div>
 
-                                    {/* 🔥 Завантажувач: ImageUploader */}
-                                    <ImageUploader
-                                        label="Медіафайл"
-                                        currentUrl={formData.file_url}
-                                        onUpload={(url) => setFormData({ ...formData, file_url: url })}
-                                        onUploadMany={(urls) => setFormData({ ...formData, file_urls: urls })}
-                                        bucket="media"
-                                        folder="gallery"
-                                        fileType={formData.file_type as 'image' | 'video'}
-                                        multiple={!editingItem}
-                                    />
+                                    {/* Divider */}
+                                    <div className="border-b border-white/10" />
 
-                                    {/* 🔥 Dropdown Типу Файлу (Кастомний) */}
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex-1">
-                                            <CustomSelect
-                                                label="Тип файлу"
-                                                value={formData.file_type}
-                                                onChange={(value) => setFormData({ ...formData, file_type: value || 'image' })}
+                                    {/* Details Section */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-semibold text-[#46D6C8] flex items-center gap-2">
+                                            <Info size={20} className="text-[#46D6C8]" />
+                                            Деталі
+                                        </h3>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-white/80 block">
+                                                {`${t('gallery.event', 'Подія')} (${t('gallery.optional', 'опціонально')})`}
+                                            </Label>
+                                            <NeonPopoverList
+                                                value={formData.event_id || "no_event"}
+                                                onChange={(value) => setFormData({ ...formData, event_id: value === "no_event" ? null : value })}
+                                                disablePortal={false}
+                                                width={0}
+                                                minW={0}
+                                                className="w-full lg:w-full"
                                                 options={[
-                                                    { value: 'image', label: 'Image' },
-                                                    { value: 'video', label: 'Video' }
+                                                    { 
+                                                        id: "no_event", 
+                                                        label: t('gallery.no_event', 'Без події'), 
+                                                        textLabel: t('gallery.no_event', 'Без події'),
+                                                        textColor: "text-white"
+                                                    },
+                                                    ...events.map((event) => ({
+                                                        id: event.id,
+                                                        label: (
+                                                            <MarqueeText>
+                                                                <span className="text-amber-400 font-semibold text-base whitespace-nowrap">{getEventTitle(event)}</span>
+                                                                <span className="text-[#C2C2C2] text-sm whitespace-nowrap ml-2">• {formatEventDate(event.event_date)}</span>
+                                                            </MarqueeText>
+                                                        ),
+                                                        textLabel: `${getEventTitle(event)} - ${formatEventDate(event.event_date)}`,
+                                                        textColor: "text-white",
+                                                        hoverColor: "emerald"
+                                                    }))
                                                 ]}
-                                                required
                                             />
                                         </div>
-                                        <p className="text-sm text-gray-400 flex-shrink-0">Вкажіть, що ви завантажуєте.</p>
+                                        <p className="text-xs text-gray-500">
+                                            💡 <strong>{t('gallery.event_help', 'Використовується')}:</strong> {t('gallery.event_help_text', 'Пов\'язує медіа з конкретною подією для організації архіву.')}
+                                        </p>
+
+                                        <div>
+                                            <label className="text-sm font-medium text-white/80 mb-2 block">
+                                                {t('gallery.title_field', 'Заголовок')} (UKR)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.title_uk}
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, title_uk: e.target.value });
+                                                    if (errors['title_uk']) {
+                                                        setErrors(prev => {
+                                                            const newErrors = { ...prev };
+                                                            delete newErrors['title_uk'];
+                                                            return newErrors;
+                                                        });
+                                                    }
+                                                }}
+                                                placeholder={t('gallery.title_placeholder', 'Введіть заголовок')}
+                                                className={`w-full px-3 py-2 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none transition-all ${
+                                                    errors['title_uk']
+                                                        ? 'border border-red-500/50 shadow-[0_0_10px_rgba(220,38,38,0.2)]'
+                                                        : 'border border-white/10 focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 hover:border-[#46D6C8]/30 hover:shadow-[0_0_15px_rgba(70,214,200,0.1)]'
+                                                }`}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="text-sm font-medium text-white/80 mb-2 block">
+                                                {t('gallery.description_field', 'Опис')} (UKR)
+                                            </label>
+                                            <textarea
+                                                value={formData.description_uk}
+                                                onChange={(e) => setFormData({ ...formData, description_uk: e.target.value })}
+                                                placeholder={t('gallery.description_placeholder', 'Введіть опис')}
+                                                rows={4}
+                                                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 hover:border-[#46D6C8]/30 transition-all hover:shadow-[0_0_15px_rgba(70,214,200,0.1)] resize-none"
+                                            />
+                                        </div>
                                     </div>
 
-                                    {/* Thumbnail (опціонально) */}
-                                    {formData.file_type === 'video' && (
-                                        <ImageUploader
-                                            label="Мініатюра (опціонально)"
-                                            currentUrl={formData.thumbnail_url}
-                                            onUpload={(url) => setFormData({ ...formData, thumbnail_url: url })}
-                                            bucket="media"
-                                            folder="gallery/thumbnails"
-                                        />
-                                    )}
-                                </div>
-
-                                {/* Розділювач */}
-                                <hr className="border-white/10" />
-
-                                {/* ======================================= */}
-                                {/* БЛОК 2: ІНФОРМАЦІЯ (Data Entry) */}
-                                {/* ======================================= */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-white mb-2">Деталі</h3>
-                                    </div>
-
-                                    {/* Подія (Опціонально) - Кастомний Select */}
-                                    <CustomSelect
-                                        label={`${t('gallery.event', 'Подія')} (${t('gallery.optional', 'опціонально')})`}
-                                        value={formData.event_id}
-                                        onChange={(value) => setFormData({ ...formData, event_id: value })}
-                                        options={[
-                                            { value: null, label: t('gallery.no_event', 'Без події') },
-                                            ...events.map((event) => {
-                                                const eventTitle = getEventTitle(event);
-                                                const eventDate = formatEventDate(event.event_date);
-                                                return {
-                                                    value: event.id,
-                                                    label: `${eventTitle} - ${eventDate}`
-                                                };
-                                            })
-                                        ]}
-                                        placeholder={t('gallery.no_event', 'Без події')}
-                                    />
-                                    <p className="text-xs text-gray-500">
-                                        💡 <strong>{t('gallery.event_help', 'Використовується')}:</strong> {t('gallery.event_help_text', 'Пов\'язує медіа з конкретною подією для організації архіву.')}
-                                    </p>
-
-                                    {/* Заголовок (Title) - Тільки UKR */}
-                                    <div>
-                                        <label className="text-sm font-medium text-white/80 mb-2 block">
-                                            {t('gallery.title_field', 'Заголовок')} (UKR)
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={formData.title_uk}
-                                            onChange={(e) => setFormData({ ...formData, title_uk: e.target.value })}
-                                            placeholder={t('gallery.title_placeholder', 'Введіть заголовок')}
-                                            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 transition-all"
-                                        />
-                                    </div>
-
-                                    {/* Опис (Description) - Тільки UKR */}
-                                    <div>
-                                        <label className="text-sm font-medium text-white/80 mb-2 block">
-                                            {t('gallery.description_field', 'Опис')} (UKR)
-                                        </label>
-                                        <textarea
-                                            value={formData.description_uk}
-                                            onChange={(e) => setFormData({ ...formData, description_uk: e.target.value })}
-                                            placeholder={t('gallery.description_placeholder', 'Введіть опис')}
-                                            rows={4}
-                                            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 transition-all resize-none"
-                                        />
-                                    </div>
                                 </div>
                             </form>
                         </div>
-
-                        {/* Footer / Кнопка Зберегти */}
-                        <div className="p-4 border-t border-white/10 flex justify-end gap-3 bg-black/80 backdrop-blur-sm sticky bottom-0">
+                        {/* Footer */}
+                        <div className="px-6 pt-2 pb-4 bg-[#04070A] flex justify-end gap-3 rounded-b-lg relative z-50">
+                            {/* Gradient above footer */}
+                            <div className="absolute -top-12 translate-y-px left-0 right-0 h-12 bg-gradient-to-t from-[#04070A] via-[#04070A]/80 to-transparent pointer-events-none" />
                             <button
                                 type="button"
                                 onClick={resetForm}
@@ -984,16 +872,29 @@ const GalleryManager = () => {
                                     e.preventDefault();
                                     handleSubmit(e as any);
                                 }}
-                                disabled={loading || (!formData.file_url && (!formData.file_urls || formData.file_urls.length === 0))}
+                                disabled={loading}
                                 className="px-4 py-2 rounded-lg bg-[#46D6C8] text-black font-semibold hover:opacity-90 hover:shadow-[0_0_30px_rgba(70,214,200,0.8)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? t('common.loading', 'Завантаження...') : t('common.save', 'Зберегти')}
                             </button>
                         </div>
-                    </div>
-                </div>
-            )}
-        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            <GlassConfirmDialog
+                open={!!deleteConfirmId}
+                onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
+                title={t('gallery.confirm_delete_title', 'Видалити елемент')}
+                description={t('gallery.confirm_delete', 'Ви впевнені, що хочете видалити цей елемент?')}
+                confirmLabel={t('common.delete', 'Видалити')}
+                cancelLabel={t('common.cancel', 'Скасувати')}
+                variant="destructive"
+                onConfirm={() => {
+                    if (deleteConfirmId) deleteItem(deleteConfirmId);
+                }}
+            />
+        </AdminShell>
     );
 };
 

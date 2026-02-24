@@ -7,33 +7,33 @@ interface DailyDataPoint {
 }
 
 /**
- * Генерує масив з останніх 7 днів.
- * @returns {DailyDataPoint[]} Масив з 7 об'єктів { name, dateKey, value: 0 }.
+ * Генерує масив з останніх N днів.
+ * @param count Кількість днів (за замовчуванням 7).
+ * @returns {DailyDataPoint[]} Масив об'єктів { name, dateKey, value: 0 }.
  */
-export const getLastSevenDays = (): DailyDataPoint[] => {
+export const getLastNDays = (count: number = 7): DailyDataPoint[] => {
     const days: DailyDataPoint[] = [];
     const today = new Date();
-    
-    // Масив назв днів тижня для відображення на графіку
     const dayNames = ["Нд", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+    const monthNames = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"];
 
-    for (let i = 6; i >= 0; i--) {
+    for (let i = count - 1; i >= 0; i--) {
         const d = new Date(today);
-        d.setDate(today.getDate() - i); // Віднімаємо дні
+        d.setDate(today.getDate() - i);
 
-        // Форматування дати у вигляд "YYYY-MM-DD" для ключа
         const dateKey = d.toISOString().split('T')[0];
-        
-        // Отримуємо назву дня
-        const dayName = dayNames[d.getDay()];
+        // For 7 days show day names, for longer periods show date
+        const name = count <= 7
+            ? dayNames[d.getDay()]
+            : `${d.getDate()} ${monthNames[d.getMonth()]}`;
 
-        days.push({
-            name: dayName,
-            dateKey: dateKey,
-            value: 0,
-        });
+        days.push({ name, dateKey, value: 0 });
     }
 
     return days;
 };
 
+/**
+ * Генерує масив з останніх 7 днів (сумісність).
+ */
+export const getLastSevenDays = (): DailyDataPoint[] => getLastNDays(7);

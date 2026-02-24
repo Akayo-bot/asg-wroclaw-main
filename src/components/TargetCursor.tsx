@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { useLocation } from 'react-router-dom';
 import { useCursor } from '../contexts/CursorContext';
@@ -470,10 +471,10 @@ const TargetCursor = ({
         return null;
     }
 
-    return (
+    return createPortal(
         <div
             ref={cursorRef}
-            className="fixed top-0 left-0 w-0 h-0 pointer-events-none z-[9999] transform -translate-x-1/2 -translate-y-1/2"
+            className="fixed top-0 left-0 w-0 h-0 pointer-events-none z-[13050] transform -translate-x-1/2 -translate-y-1/2"
             style={{
                 willChange: 'transform',
                 animation: 'cursorGlow 2s ease-in-out infinite alternate'
@@ -559,7 +560,8 @@ const TargetCursor = ({
                     `
                 }}
             />
-        </div>
+        </div>,
+        document.body
     );
 };
 

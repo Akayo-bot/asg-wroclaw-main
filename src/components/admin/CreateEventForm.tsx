@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { Info, MapPin, Clock, Camera, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useRef, useEffect } from 'react';
+import { Info, MapPin, Clock, Camera, Plus, X, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ImageUploader from '@/components/admin/ImageUploader';
@@ -9,46 +9,70 @@ import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { Calendar1 } from '@/components/Calendar1';
 import { useI18n } from "@/contexts/I18nContext";
-import { toast } from '@/hooks/use-toast';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { NeonPopoverList } from '@/components/admin/NeonPopoverList';
 
-// Custom date picker implementation
+// ── Хелперы для динамических подсказок ──────────────────────────────────────
+type SegKey = "DD" | "MM" | "YYYY" | "HH" | "mm" | "AMPM";
+
+/** 0..1 прогресс заполнения каждого сегмента */
+function segmentProgress(text: string, is12h: boolean): Record<SegKey, number> {
+    const zero: Record<SegKey, number> = { DD: 0, MM: 0, YYYY: 0, HH: 0, mm: 0, AMPM: 0 };
+    const t = (text || "").trim();
+    if (!t) return zero;
+
+    if (is12h) {
+        // MM/DD/YYYY hh:mm (AM|PM)?
+        const m = t.match(/^\s*(\d{0,2})\/?(\d{0,2})\/?(\d{0,4})(?:\s+(\d{0,2})(?::(\d{0,2}))?(?:\s*(AM|PM))?)?/i);
+        if (!m) return zero;
+        const [, MM, DD, YYYY, HH, mm, AP] = m;
+        return {
+            DD: Math.min((DD || "").length / 2, 1),
+            MM: Math.min((MM || "").length / 2, 1),
+            YYYY: Math.min((YYYY || "").length / 4, 1),
+            HH: Math.min((HH || "").length / 2, 1),
+            mm: Math.min((mm || "").length / 2, 1),
+            AMPM: AP ? 1 : 0,
+        };
+    } else {
+        // DD.MM.YYYY HH:mm
+        const m = t.match(/^\s*(\d{0,2})\.?(\d{0,2})\.?(\d{0,4})(?:\s+(\d{0,2})(?::(\d{0,2}))?)?/);
+        if (!m) return zero;
+        const [, DD, MM, YYYY, HH, mm] = m;
+        return {
+            DD: Math.min((DD || "").length / 2, 1),
+            MM: Math.min((MM || "").length / 2, 1),
+            YYYY: Math.min((YYYY || "").length / 4, 1),
+            HH: Math.min((HH || "").length / 2, 1),
+            mm: Math.min((mm || "").length / 2, 1),
+            AMPM: 0,
+        };
+    }
+}
+
+/** Общий «прогресс заполнения» 0..1 — можно использовать для общей прозрачности */
+function overallProgress(text: string, is12h: boolean) {
+    const s = segmentProgress(text, is12h);
+    const keys: SegKey[] = is12h ? ["MM", "DD", "YYYY", "HH", "mm", "AMPM"] : ["DD", "MM", "YYYY", "HH", "mm"];
+    return keys.reduce((a, k) => a + s[k], 0) / keys.length;
+}
+
 interface CreateEventFormProps {
     eventData: any;
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: any } }) => void;
-    onSave: () => void;
-    onCancel: () => void;
     handleImageUpload: (url: string) => void;
     isEditing?: boolean;
+    loading?: boolean;
+    errors?: Record<string, boolean>;
 }
 
-const fromISOToText = (iso?: string | null) => {
-    if (!iso) return "";
-    // 23.11.2025, 14:30
-    return new Date(iso).toLocaleString("uk-UA", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).replace(',', ''); // Remove comma if present in locale string
-};
-
-const Card = ({ title, subtitle, children, icon: Icon }: { title: string; subtitle?: string; children: React.ReactNode; icon?: any }) => (
-    <div className="rounded-xl p-6 border border-white/10 bg-black/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3 mb-2">
-            {Icon && <Icon size={24} className="text-[#46D6C8]" />}
-            <h3 className="text-xl font-semibold text-white">{title}</h3>
-        </div>
-        {subtitle && <p className="text-sm text-gray-400 mb-6">{subtitle}</p>}
-        <div className="space-y-4">{children}</div>
-    </div>
-);
-
-const AutoResizeTextarea = ({ value, onChange, name, placeholder, rows = 3 }: any) => {
+const AutoResizeTextarea = ({ value, onChange, name, placeholder, rows = 3, hasError }: any) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const baseInputClasses = "w-full px-3 py-2 rounded-lg bg-white/5 border text-white placeholder:text-gray-600 focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 hover:border-[#46D6C8]/30 transition-all hover:shadow-[0_0_15px_rgba(70,214,200,0.1)]";
+    const errorClasses = "border-red-500/50 shadow-[0_0_10px_rgba(220,38,38,0.2)]";
+    const normalClasses = "border-white/10";
 
     useEffect(() => {
         if (textareaRef.current) {
@@ -65,17 +89,54 @@ const AutoResizeTextarea = ({ value, onChange, name, placeholder, rows = 3 }: an
             onChange={onChange}
             placeholder={placeholder}
             rows={rows}
-            className="w-full bg-white/5 border border-white/10 text-white rounded-lg px-3 py-2 hover:border-[#46D6C8]/50 focus:border-[#46D6C8] focus:outline-none transition-colors resize-none overflow-hidden"
+            className={`${baseInputClasses} ${hasError ? errorClasses : normalClasses} resize-none overflow-hidden`}
         />
     );
 };
 
-const CreateEventForm: React.FC<CreateEventFormProps> = ({ eventData, onChange, onSave, onCancel, handleImageUpload, isEditing = false }) => {
-    
+const fromISOToText = (iso?: string | null) => {
+    if (!iso) return "";
+    return new Date(iso).toLocaleString("uk-UA", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).replace(", ", "        ");
+};
+
+// Manual input handler
+const handleManualDateInput = (value: string, currentIso: string | null, onChange: (iso: string) => void) => {
+    // If empty, clear
+    if (!value.trim()) {
+        onChange("");
+        return;
+    }
+
+    // If valid ISO date, just use it
+    const d = new Date(value);
+    if (!isNaN(d.getTime()) && value.includes('T')) {
+        onChange(d.toISOString());
+        return;
+    }
+
+    // Regex for DD.MM.YYYY HH:mm
+    const ddmmyyyy = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{1,2})$/);
+    if (ddmmyyyy) {
+        const [_, day, month, year, hour, minute] = ddmmyyyy;
+        const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+        if (!isNaN(date.getTime())) {
+            onChange(date.toISOString());
+        }
+    }
+};
+
+const CreateEventForm: React.FC<CreateEventFormProps> = ({ eventData, onChange, handleImageUpload, isEditing = false, loading = false, errors = {} }) => {
+
     // Time format state
     const { language } = useI18n();
-    const [timeFormatMode, setTimeFormatMode] = useState<"auto" | "12" | "24">("auto");
-    
+    const [timeFormatMode, setTimeFormatMode] = React.useState<"auto" | "12" | "24">("auto");
+
     // Determine effective format
     const effective12h = React.useMemo(() => {
         if (timeFormatMode === "auto") {
@@ -84,130 +145,95 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ eventData, onChange, 
         return timeFormatMode === "12";
     }, [timeFormatMode, language]);
 
-    const [isButtonHovering, setIsButtonHovering] = useState(false);
-    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-    const [isInputFocused, setIsInputFocused] = useState(false);
-    const [inputValue, setInputValue] = useState("");
-    // Space added after date part for visual separation: "DD.MM.YYYY   HH:mm"
-    const [inputMask, setInputMask] = useState("DD.MM.YYYY   HH:mm");
+    const [isButtonHovering, setIsButtonHovering] = React.useState(false);
+    const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
+    const [isInputFocused, setIsInputFocused] = React.useState(false);
+    const [inputValue, setInputValue] = React.useState("");
 
-    // Sync input value with eventData.start_datetime when not focused
+    // Sync input value with eventData.start_datetime
+    // Sync input value with eventData.start_datetime
     useEffect(() => {
         if (!isInputFocused && eventData.start_datetime) {
-            const text = fromISOToText(eventData.start_datetime);
-            // Add extra spaces for display if valid
-            if (text.length >= 16) {
-                 // "DD.MM.YYYY HH:mm" -> "DD.MM.YYYY   HH:mm"
-                 const [datePart, timePart] = text.split(' ');
-                 setInputValue(`${datePart}   ${timePart}`);
+            const d = new Date(eventData.start_datetime);
+            if (effective12h) {
+                // MM/DD/YYYY      hh:mm   AM/PM
+                const MM = (d.getMonth() + 1).toString().padStart(2, '0');
+                const DD = d.getDate().toString().padStart(2, '0');
+                const YYYY = d.getFullYear();
+                let HH = d.getHours();
+                const mm = d.getMinutes().toString().padStart(2, '0');
+                const amp = HH >= 12 ? 'PM' : 'AM';
+                if (HH > 12) HH -= 12;
+                if (HH === 0) HH = 12;
+                const hhStr = HH.toString().padStart(2, '0');
+                
+                setInputValue(`${MM}/${DD}/${YYYY}   ${hhStr}:${mm}      ${amp}`);
             } else {
-                setInputValue(text);
+                // DD.MM.YYYY        HH:mm
+                const DD = d.getDate().toString().padStart(2, '0');
+                const MM = (d.getMonth() + 1).toString().padStart(2, '0');
+                const YYYY = d.getFullYear();
+                const HH = d.getHours().toString().padStart(2, '0');
+                const mm = d.getMinutes().toString().padStart(2, '0');
+                
+                setInputValue(`${DD}.${MM}.${YYYY}        ${HH}:${mm}`);
             }
         } else if (!isInputFocused && !eventData.start_datetime) {
             setInputValue("");
-            setInputMask("DD.MM.YYYY   HH:mm");
         }
-    }, [eventData.start_datetime, isInputFocused]);
+    }, [eventData.start_datetime, isInputFocused, effective12h]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let val = e.target.value;
-        // Allow spaces for the gap
-        
+        const val = e.target.value;
         const prevVal = inputValue;
-        
-        // Auto-formatting logic for DD.MM.YYYY   HH:mm
+
+        // Auto-formatting logic
         let formatted = val;
         
-        // Remove all non-digits temporarily to count
-        const digitsOnly = val.replace(/[^\d]/g, '');
-        
-        // If user is typing (not deleting)
+        // Allow digits and A/P/M characters if 12h mode
+        const cleanVal = effective12h 
+            ? val.replace(/[^0-9a-zA-Z]/g, '') 
+            : val.replace(/[^\d]/g, '');
+
         if (val.length >= prevVal.length) {
-            // Auto-add dots and spaces
-            if (digitsOnly.length <= 2) {
-                // DD
-                formatted = digitsOnly;
-            } else if (digitsOnly.length <= 4) {
-                // DD.MM
-                formatted = digitsOnly.slice(0, 2) + '.' + digitsOnly.slice(2);
-            } else if (digitsOnly.length <= 8) {
-                // DD.MM.YYYY
-                formatted = digitsOnly.slice(0, 2) + '.' + digitsOnly.slice(2, 4) + '.' + digitsOnly.slice(4);
-            } else if (digitsOnly.length <= 10) {
-                // DD.MM.YYYY   HH (3 spaces)
-                formatted = digitsOnly.slice(0, 2) + '.' + digitsOnly.slice(2, 4) + '.' + digitsOnly.slice(4, 8) + '   ' + digitsOnly.slice(8);
+            if (effective12h) {
+                // Custom formatting for 12h to prevent "clumping" and allow AM/PM
+                // Expected format: MM/DD/YYYY      hh:mm   AM/PM
+                // We construct it step by step
+                const digits = cleanVal.replace(/[^\d]/g, '');
+                const letters = cleanVal.replace(/[^a-zA-Z]/g, '').toUpperCase();
+                
+                if (digits.length <= 2) formatted = digits;
+                else if (digits.length <= 4) formatted = digits.slice(0, 2) + '/' + digits.slice(2);
+                else if (digits.length <= 8) formatted = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+                else if (digits.length <= 10) formatted = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4, 8) + '   ' + digits.slice(8);
+                else formatted = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4, 8) + '   ' + digits.slice(8, 10) + ':' + digits.slice(10, 12);
+                
+                // Append AM/PM if we have minutes and letters
+                if (digits.length >= 12 && letters.length > 0) {
+                     const ap = letters.startsWith('A') ? 'AM' : letters.startsWith('P') ? 'PM' : '';
+                     if (ap) formatted += '      ' + ap; // 6 spaces
+                }
             } else {
-                // DD.MM.YYYY   HH:mm
-                formatted = digitsOnly.slice(0, 2) + '.' + digitsOnly.slice(2, 4) + '.' + digitsOnly.slice(4, 8) + '   ' + digitsOnly.slice(8, 10) + ':' + digitsOnly.slice(10, 12);
+                // Standard 24h
+                const digitsOnly = cleanVal.replace(/[^\d]/g, '');
+                if (digitsOnly.length <= 2) formatted = digitsOnly;
+                else if (digitsOnly.length <= 4) formatted = digitsOnly.slice(0, 2) + '.' + digitsOnly.slice(2);
+                else if (digitsOnly.length <= 8) formatted = digitsOnly.slice(0, 2) + '.' + digitsOnly.slice(2, 4) + '.' + digitsOnly.slice(4);
+                else if (digitsOnly.length <= 10) formatted = digitsOnly.slice(0, 2) + '.' + digitsOnly.slice(2, 4) + '.' + digitsOnly.slice(4, 8) + '        ' + digitsOnly.slice(8);
+                else formatted = digitsOnly.slice(0, 2) + '.' + digitsOnly.slice(2, 4) + '.' + digitsOnly.slice(4, 8) + '        ' + digitsOnly.slice(8, 10) + ':' + digitsOnly.slice(10, 12);
             }
         } else {
-            // User is deleting
-             // Logic to handle deletion nicely - primarily relying on raw input but maybe cleaning up trailing separators if needed
-             // For now, basic handling
+            formatted = val;
         }
-        
-        // Update input value
+
         setInputValue(formatted);
-        
-        // Update mask based on length (accounting for extra spaces)
-        // Lengths: 
-        // DD (2)
-        // DD.MM (5)
-        // DD.MM.YYYY (10)
-        // DD.MM.YYYY   (13)
-        // DD.MM.YYYY   HH (15)
-        // DD.MM.YYYY   HH:mm (18)
 
-        if (formatted.length === 0) setInputMask("DD.MM.YYYY   HH:mm");
-        else if (formatted.length <= 2) setInputMask("  .MM.YYYY   HH:mm");
-        else if (formatted.length <= 5) setInputMask("     .YYYY   HH:mm");
-        else if (formatted.length <= 10) setInputMask("             HH:mm");
-        else if (formatted.length <= 13) setInputMask("             HH:mm");
-        else if (formatted.length <= 15) setInputMask("               :mm");
-        else setInputMask("");
-
-        
-        // Try to parse complete date
-        if (digitsOnly.length === 12) {
-            // We have full date: DDMMYYYYHHMM
-            const day = parseInt(digitsOnly.slice(0, 2));
-            const month = parseInt(digitsOnly.slice(2, 4));
-            const year = parseInt(digitsOnly.slice(4, 8));
-            const hour = parseInt(digitsOnly.slice(8, 10));
-            const minute = parseInt(digitsOnly.slice(10, 12));
-            
-            // Validation
-            if (month < 1 || month > 12) {
-                toast({ title: "Невірна дата", description: "Місяць має бути від 01 до 12", variant: "destructive" });
-                return;
-            }
-            
-            // Days in month check
-            const daysInMonth = new Date(year, month, 0).getDate();
-            if (day < 1 || day > daysInMonth) {
-                toast({ title: "Невірна дата", description: `В цьому місяці лише ${daysInMonth} днів`, variant: "destructive" });
-                return;
-            }
-
-            if (hour > 23) {
-                toast({ title: "Невірний час", description: "Години мають бути від 00 до 23", variant: "destructive" });
-                return;
-            }
-            if (minute > 59) {
-                toast({ title: "Невірний час", description: "Хвилини мають бути від 00 до 59", variant: "destructive" });
-                return;
-            }
-
-            const date = new Date(year, month - 1, day, hour, minute);
-            
-            // Check valid date object
-            if (!isNaN(date.getTime())) {
-                 // Check if past date (optional, based on requirements but user asked for validation)
-                 // "Так же проверку даты на такую и писать что не существует такой даты" - existence check done above.
-                 onChange({ target: { name: 'start_datetime', value: date.toISOString() } });
-            } else {
-                 toast({ title: "Помилка", description: "Некоректна дата", variant: "destructive" });
-            }
+        // Parse complete date
+        // Note: simplified basic check, robust parsing handled by Date.parse usually
+        const d = new Date(formatted);
+        if (!isNaN(d.getTime()) && formatted.length >= 16) { // Rough check for completeness
+             onChange({ target: { name: 'start_datetime', value: d.toISOString() } });
         }
     };
 
@@ -231,187 +257,283 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ eventData, onChange, 
         onChange({ target: { name: 'amenities', value: newAmenities } });
     };
 
-    return (
-        <div className="p-6 space-y-6 max-w-3xl mx-auto">
-            <h1 className="font-display text-3xl text-white">{isEditing ? 'Редагувати подію' : 'Додати подію'}</h1>
+    const handleGatheringTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let val = e.target.value.replace(/[^\d]/g, '');
+        if (val.length > 4) val = val.slice(0, 4);
+        
+        if (val.length > 2) {
+            val = val.slice(0, 2) + ':' + val.slice(2);
+        }
+        
+        onChange({ target: { name: 'gathering_time', value: val } });
+    };
 
+    const baseInputClasses = "w-full px-3 py-2 rounded-lg bg-white/5 border text-white placeholder:text-gray-600 focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50 hover:border-[#46D6C8]/30 transition-all hover:shadow-[0_0_15px_rgba(70,214,200,0.1)]";
+    const labelClasses = "text-sm font-medium text-white/80";
+
+    const getInputClass = (fieldName: string) => {
+        const hasError = errors[fieldName];
+        const errorClasses = "border-red-500/50 shadow-[0_0_10px_rgba(220,38,38,0.2)]";
+        const normalClasses = "border-white/10";
+        return `${baseInputClasses} ${hasError ? errorClasses : normalClasses}`;
+    };
+
+    const handleDurationBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        const val = e.target.value.trim();
+        if (val && !isNaN(Number(val))) {
+            onChange({ target: { name: 'duration', value: `${val} hours` } });
+        }
+    };
+
+    return (
+        <div className="space-y-6">
             {/* Basic Info */}
-            <Card title="Основна інформація" icon={Info} subtitle="Назва та анонс">
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-[#46D6C8] flex items-center gap-2">
+                    <Info size={20} className="text-[#46D6C8]" />
+                    Основна інформація
+                </h3>
                 <div className="space-y-2">
-                    <Label className="text-white">Назва події (UKR)</Label>
-                    <Input 
-                        name="title_uk" 
-                        value={eventData.title_uk} 
-                        onChange={onChange} 
-                        required 
+                    <Label className={labelClasses}>Назва події (UKR)</Label>
+                    <Input
+                        name="title_uk"
+                        value={eventData.title_uk}
+                        onChange={onChange}
+                        required
+                        required
                         autoComplete="off"
-                        className="bg-white/5 border-white/10 text-white hover:border-[#46D6C8]/50 focus:border-[#46D6C8] focus:ring-0 focus:outline-none transition-colors"
+                        className={getInputClass('title_uk')}
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label className="text-white">Короткий опис / Анонс</Label>
+                    <Label className={labelClasses}>Короткий опис / Анонс</Label>
                     <AutoResizeTextarea
-                        name="description_uk" 
-                        value={eventData.description_uk} 
-                        onChange={onChange} 
-                        placeholder="Яскравий анонс події для залучення гравців..." 
+                        name="description_uk"
+                        value={eventData.description_uk}
+                        onChange={onChange}
+                        placeholder="Яскравий анонс події для залучення гравців..."
                     />
                 </div>
-            </Card>
+            </div>
+
+            <div className="border-b border-white/10" />
 
             {/* Location & Scenario */}
-            <Card title="Локація та сценарій" icon={MapPin} subtitle="Критично для підготовки гравців">
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-[#46D6C8] flex items-center gap-2">
+                    <MapPin size={20} className="text-[#46D6C8]" />
+                    Локація та сценарій
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                        <Label className="text-white">Назва полігона (для відображення)</Label>
-                        <Input 
-                            name="location_uk" 
-                            value={eventData.location_uk} 
-                            onChange={onChange} 
-                            required 
+                        <Label className={labelClasses}>Назва полігона (для відображення)</Label>
+                        <Input
+                            name="location_uk"
+                            value={eventData.location_uk}
+                            onChange={onChange}
+                            required
+                            required
                             autoComplete="off"
-                            className="bg-white/5 border-white/10 text-white hover:border-[#46D6C8]/50 focus:border-[#46D6C8] focus:ring-0 focus:outline-none transition-colors"
+                            className={getInputClass('location_uk')}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-white">Google Maps URL (Клікабельна точка)</Label>
-                        <Input 
-                            name="map_url" 
-                            value={eventData.map_url} 
-                            onChange={onChange} 
-                            placeholder="https://maps.app.goo.gl/..." 
+                        <Label className={labelClasses}>Google Maps URL (Клікабельна точка)</Label>
+                        <Input
+                            name="map_url"
+                            value={eventData.map_url}
+                            onChange={onChange}
+                            placeholder="https://maps.app.goo.gl/..."
                             autoComplete="off"
-                            className="bg-white/5 border-white/10 text-white hover:border-[#46D6C8]/50 focus:border-[#46D6C8] focus:ring-0 focus:outline-none transition-colors"
+                            className={getInputClass('map_url')}
                         />
                     </div>
                 </div>
 
-                <hr className="border-white/10 my-4" />
-
                 <div className="space-y-2">
-                    <Label className="text-white">Деталі гри / Мета</Label>
+                    <Label className={labelClasses}>Деталі гри / Мета</Label>
                     <AutoResizeTextarea
-                        name="scenario_uk" 
-                        value={eventData.scenario_uk} 
-                        onChange={onChange} 
+                        name="scenario_uk"
+                        value={eventData.scenario_uk}
+                        onChange={onChange}
                         rows={5}
-                        placeholder="Опис сценарію, елементи гри, умови перемоги..." 
+                        placeholder="Опис сценарію, елементи гри, умови перемоги..."
+                        hasError={errors['scenario_uk']}
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label className="text-white">Правила та техніка безпеки</Label>
+                    <Label className={labelClasses}>Правила та техніка безпеки</Label>
                     <AutoResizeTextarea
-                        name="rules_uk" 
-                        value={eventData.rules_uk} 
-                        onChange={onChange} 
+                        name="rules_uk"
+                        value={eventData.rules_uk}
+                        onChange={onChange}
                         rows={3}
-                        placeholder="Хронометраж, захист очей, 'холодний постріл'..." 
+                        placeholder="Хронометраж, захист очей, 'холодний постріл'..."
+                        hasError={errors['rules_uk']}
                     />
                 </div>
-            </Card>
+            </div>
+
+            <div className="border-b border-white/10" />
 
             {/* Timing & Participants */}
-            <Card title="Таймінг та учасники" icon={Clock} subtitle="Чіткість та фінанси">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-[60]">
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-[#46D6C8] flex items-center gap-2">
+                    <Clock size={20} className="text-[#46D6C8]" />
+                    Таймінг та учасники
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                        <Label className="text-white">Дата та час старту</Label>
-                        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                            <PopoverAnchor asChild>
-                                <div className="relative flex items-center gap-2 w-full">
-                                    <div className="relative flex-1">
-                                        {/* Mask Overlay */}
-                                        <div 
-                                            className="absolute inset-0 pointer-events-none flex items-center px-3 text-muted-foreground/40 font-mono text-sm tracking-wide"
-                                            aria-hidden="true"
-                                        >
-                                            <span className="opacity-0">{inputValue}</span>
-                                            <span>{inputMask}</span>
+                        <Label className={labelClasses}>Час збору</Label>
+                        <Input
+                            name="gathering_time"
+                            value={eventData.gathering_time}
+                            onChange={handleGatheringTimeChange}
+                            placeholder="09:00"
+                            className={getInputClass('gathering_time')}
+                            maxLength={5}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className={labelClasses}>Тривалість гри</Label>
+                        <Input
+                            name="duration"
+                            value={eventData.duration}
+                            onChange={onChange}
+                            placeholder="4 години"
+                            className={getInputClass('duration')}
+                            onBlur={handleDurationBlur}
+                            autoComplete="off"
+                        />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label className={labelClasses}>Дата та час старту</Label>
+                    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                        <PopoverAnchor asChild>
+                            <div className="relative flex items-center gap-2 w-full">
+                                {/* Overlay hints */}
+                                <div
+                                    aria-hidden
+                                    className="pointer-events-none absolute inset-0 z-[10] flex items-center px-3 text-base font-medium font-mono select-none tracking-wider"
+                                    style={{ opacity: 0.78 - overallProgress(inputValue, effective12h) * 0.58 }}
+                                >
+                                    {effective12h ? (
+                                        <div className="flex items-center text-gray-600 whitespace-pre">
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).MM }}>mm</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).MM }}>/</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).DD }}>dd</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).DD }}>/</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).YYYY }}>yyyy</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).YYYY }}>   </span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).HH }}>hh</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).HH }}>:</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).mm }}>mm</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).mm }}>      </span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, true).AMPM }}>am/pm</span>
                                         </div>
-                                        
-                                        <Input
-                                            name="start_datetime_display"
-                                            value={inputValue}
-                                            onChange={handleInputChange}
-                                            className="bg-white/5 border-white/10 text-white hover:border-[#46D6C8]/50 focus:border-[#46D6C8] focus:ring-0 focus:outline-none transition-colors w-full font-mono tracking-wide relative z-10 bg-transparent"
-                                            onFocus={() => setIsInputFocused(true)}
-                                            onBlur={() => setIsInputFocused(false)}
-                                            autoComplete="off"
-                                        />
-                                    </div>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            className="backdrop-blur-md bg-[#04070A]/80 border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.05)] hover:bg-white/10 hover:border-[#46D6C8]/20 transition-colors h-10 w-10 p-0 hover:shadow-[0_0_16px_rgba(70,214,200,0.35)] group cursor-target relative overflow-visible active:scale-90 transition-transform duration-150 shrink-0"
-                                            aria-label="Вибрати дату"
-                                            onMouseEnter={() => setIsButtonHovering(true)}
-                                            onMouseLeave={() => setIsButtonHovering(false)}
-                                            onClick={() => setIsPopoverOpen(true)}
-                                        >
-                                            <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
-                                                <div className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[#46D6C8]/5 blur-md" />
-                                                <Calendar1
-                                                    className="text-white/70 group-hover:text-[#46D6C8] transition-colors duration-300"
-                                                    width={20}
-                                                    height={20}
-                                                    isHoveringExternal={isButtonHovering}
-                                                    isFocused={isInputFocused}
-                                                    isPopoverOpen={isPopoverOpen}
-                                                />
-                                            </div>
-                                        </Button>
-                                    </PopoverTrigger>
+                                    ) : (
+                                        <div className="flex items-center text-gray-600 whitespace-pre">
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, false).DD }}>дд</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, false).DD }}>.</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, false).MM }}>мм</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, false).MM }}>.</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, false).YYYY }}>рррр</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, false).YYYY }}>   </span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, false).HH }}>гг</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, false).HH }}>:</span>
+                                            <span style={{ opacity: 1 - segmentProgress(inputValue, false).mm }}>хх</span>
+                                        </div>
+                                    )}
                                 </div>
-                            </PopoverAnchor>
-                            <PopoverContent
-                                className="w-auto p-0 bg-[#04070A]/80 backdrop-blur border border-[#46D6C8]/20 rounded-2xl shadow-[0_0_40px_rgba(70,214,200,0.12)]"
-                                align="center"
-                                side="bottom"
-                                sideOffset={10}
-                            >
-                                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-0">
-                                    <div className="p-3 md:p-4">
-                                        <DayPicker
-                                            mode="single"
-                                            selected={eventData.start_datetime ? new Date(eventData.start_datetime) : undefined}
-                                            onSelect={(day) => {
-                                                if (!day) return;
-                                                const cur = eventData.start_datetime ? new Date(eventData.start_datetime) : new Date();
-                                                const d = new Date(day);
-                                                d.setHours(cur.getHours(), cur.getMinutes(), 0, 0);
-                                                onChange({ target: { name: 'start_datetime', value: d.toISOString() } });
-                                            }}
-                                            disabled={(day) => {
-                                                const t = new Date();
-                                                t.setHours(0, 0, 0, 0);
-                                                return day < t;
-                                            }}
-                                            weekStartsOn={1}
-                                            className="rsf-cal"
-                                            classNames={{
-                                                caption: "rsf-cal-caption",
-                                                caption_label: "rsf-cal-caption-label",
-                                                nav: "rsf-cal-nav",
-                                                table: "rsf-cal-table",
-                                                head_row: "rsf-cal-head-row",
-                                                head_cell: "rsf-cal-head",
-                                                row: "rsf-cal-row",
-                                                cell: "rsf-cal-cell",
-                                                day: "rsf-cal-day",
-                                                day_selected: "rsf-cal-day rsf-cal-day--sel",
-                                                day_today: "rsf-cal-day rsf-cal-day--today",
-                                                day_disabled: "rsf-cal-day rsf-cal-day--dis",
-                                            }}
-                                            components={{
-                                                IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
-                                                IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="px-3 md:px-4 pb-4 flex flex-col gap-3 md:gap-4">
-                                        <div className="text-xs text-[#46D6C8]/70 pt-3 md:pt-4 text-center">
-                                            Час події
+                                <Input
+                                    name="start_datetime_display"
+                                    value={inputValue}
+                                    onChange={handleInputChange}
+                                    placeholder=""
+                                    className={`${getInputClass('start_datetime')} flex-1 font-mono tracking-wider z-[20] relative text-base`}
+                                    onFocus={() => setIsInputFocused(true)}
+                                    onBlur={() => setIsInputFocused(false)}
+                                    autoComplete="off"
+                                />
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className="backdrop-blur-md bg-[#04070A]/80 border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.05)] hover:bg-white/10 hover:border-[#46D6C8]/20 transition-colors h-11 w-12 p-0 hover:shadow-[0_0_16px_rgba(70,214,200,0.35)] group cursor-target relative overflow-visible active:scale-90 transition-transform duration-150 shrink-0"
+                                        aria-label="Вибрати дату"
+                                        onMouseEnter={() => setIsButtonHovering(true)}
+                                        onMouseLeave={() => setIsButtonHovering(false)}
+                                        onClick={() => setIsPopoverOpen(true)}
+                                    >
+                                        <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
+                                            <div className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[#46D6C8]/5 blur-md" />
+                                            <Calendar1
+                                                className="text-white/70 group-hover:text-[#46D6C8] transition-colors duration-300"
+                                                width={20}
+                                                height={20}
+                                                isHoveringExternal={isButtonHovering}
+                                                isFocused={isInputFocused}
+                                                isPopoverOpen={isPopoverOpen}
+                                            />
                                         </div>
-                                        <div className="flex items-end justify-center gap-4">
+                                    </Button>
+                                </PopoverTrigger>
+                            </div>
+                        </PopoverAnchor>
+                        <PopoverContent
+                            className="w-auto p-0 bg-[#04070A]/80 backdrop-blur border border-[#46D6C8]/20 rounded-2xl shadow-[0_0_40px_rgba(70,214,200,0.12)]"
+                            align="center"
+                            side="bottom"
+                            sideOffset={10}
+                        >
+                            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-0">
+                                <div className="p-3 md:p-4">
+                                    <DayPicker
+                                        mode="single"
+                                        selected={eventData.start_datetime ? new Date(eventData.start_datetime) : undefined}
+                                        onSelect={(day) => {
+                                            if (!day) return;
+                                            const cur = eventData.start_datetime ? new Date(eventData.start_datetime) : new Date();
+                                            const d = new Date(day);
+                                            d.setHours(cur.getHours(), cur.getMinutes(), 0, 0);
+                                            onChange({ target: { name: 'start_datetime', value: d.toISOString() } });
+                                        }}
+                                        disabled={(day) => {
+                                            const t = new Date();
+                                            t.setHours(0, 0, 0, 0);
+                                            return day < t;
+                                        }}
+                                        weekStartsOn={1}
+                                        className="rsf-cal"
+                                        classNames={{
+                                            caption: "rsf-cal-caption",
+                                            caption_label: "rsf-cal-caption-label",
+                                            nav: "rsf-cal-nav cursor-target",
+                                            table: "rsf-cal-table",
+                                            head_row: "rsf-cal-head-row",
+                                            head_cell: "rsf-cal-head",
+                                            row: "rsf-cal-row",
+                                            cell: "rsf-cal-cell",
+                                            day: "rsf-cal-day cursor-target",
+                                            day_selected: "rsf-cal-day rsf-cal-day--sel cursor-target",
+                                            day_today: "rsf-cal-day rsf-cal-day--today cursor-target",
+                                            day_disabled: "rsf-cal-day rsf-cal-day--dis",
+                                        }}
+                                        components={{
+                                            IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
+                                            IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
+                                        }}
+                                    />
+                                </div>
+                                <div className="px-4 pb-4 flex flex-col gap-2 pt-10">
+                                    <div className="text-sm font-medium text-[#46D6C8] text-center mb-2">
+                                        Час події
+                                    </div>
+                                    <div className="flex items-start justify-center gap-2">
+                                        {/* Hours Column */}
+                                        <div className="flex flex-col items-center gap-3">
                                             <TimeWheel
                                                 label={effective12h ? "Hours" : "Години"}
                                                 value={eventData.start_datetime ? (effective12h
@@ -438,9 +560,13 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ eventData, onChange, 
                                                 range={effective12h ? [1, 12] : [0, 23]}
                                                 pad
                                                 className="w-24"
-                                                key={effective12h ? `hours-12h-${eventData.start_datetime}` : `hours-24h-${eventData.start_datetime}`}
                                             />
-                                            <div className="pb-8 text-[#46D6C8]/70">:</div>
+                                    </div>
+
+                                        <div className="pt-6 text-2xl font-bold text-[#46D6C8]/70">:</div>
+
+                                        {/* Minutes Column */}
+                                        <div className="flex flex-col items-center">
                                             <TimeWheel
                                                 label="Хвилини"
                                                 value={eventData.start_datetime ? new Date(eventData.start_datetime).getMinutes() : 0}
@@ -453,121 +579,123 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ eventData, onChange, 
                                                 pad
                                                 className="w-24"
                                             />
-                                            
-                                            {effective12h && (
-                                                <div className="flex flex-col items-start">
-                                                    <div className="text-[11px] mb-1 text-[#46D6C8]/60">АМ/РМ</div>
-                                                    <div className="inline-flex rounded-xl overflow-hidden ring-1 ring-[#46D6C8]/20">
-                                                        {(["AM", "PM"] as const).map((p) => {
-                                                            const curH = eventData.start_datetime ? new Date(eventData.start_datetime).getHours() : 0;
-                                                            const active = (p === "AM" && curH < 12) || (p === "PM" && curH >= 12);
-                                                            return (
-                                                                <button
-                                                                    key={p}
-                                                                    onClick={() => {
-                                                                        const d = eventData.start_datetime ? new Date(eventData.start_datetime) : new Date();
-                                                                        const h = d.getHours();
-                                                                        if (p === "AM" && h >= 12) d.setHours(h - 12);
-                                                                        if (p === "PM" && h < 12) d.setHours(h + 12);
-                                                                        onChange({ target: { name: 'start_datetime', value: d.toISOString() } });
-                                                                    }}
-                                                                    className={`px-3 py-2 text-sm transition
-                                                                      ${active
-                                                                            ? "bg-[#46D6C8]/20 text-[#46D6C8]"
-                                                                            : "bg-white/5 text-gray-400 hover:bg-white/8 hover:text-[#46D6C8]"}
-                                                                    `}
-                                                                >
-                                                                    {p}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
-                                        
-                                        <Select
+                                    </div>
+
+
+                                    <div className="mt-2 text-xs w-[180px] flex flex-col gap-2">
+                                         <NeonPopoverList
                                             value={timeFormatMode}
-                                            onValueChange={(v) => setTimeFormatMode(v as "auto" | "12" | "24")}
-                                        >
-                                            <SelectTrigger className="h-10 sm:h-9 w-full border-[#46D6C8]/30 text-sm sm:text-base cursor-target bg-white/5 text-white hover:bg-white/10 transition-colors focus:ring-0 focus:ring-offset-0">
-                                                <SelectValue placeholder="Години">
-                                                    {timeFormatMode === "auto"
-                                                        ? (effective12h ? "12h (Авто)" : "24h (Авто)")
-                                                        : timeFormatMode === "12"
-                                                            ? "12h"
-                                                            : "24h"}
-                                                </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-[#04070A] border-[#46D6C8]/20 text-white">
-                                                <SelectItem value="auto" className="focus:bg-[#46D6C8]/20 focus:text-[#46D6C8]">Авто ({language === "en" ? "12h" : "24h"})</SelectItem>
-                                                <SelectItem value="12" className="focus:bg-[#46D6C8]/20 focus:text-[#46D6C8]">12h (AM/PM)</SelectItem>
-                                                <SelectItem value="24" className="focus:bg-[#46D6C8]/20 focus:text-[#46D6C8]">24h</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                            onChange={(v) => setTimeFormatMode(v as "auto" | "12" | "24")}
+                                            width={0}
+                                            minW={110}
+                                            className="w-full text-base h-12 bg-white/5 border border-[#46D6C8]/20"
+                                            color="teal"
+                                            options={[
+                                                { id: "auto", label: "Авто", textColor: "text-neutral-300", hoverColor: "teal" },
+                                                { id: "12", label: "12h", textColor: "text-neutral-300", hoverColor: "teal" },
+                                                { id: "24", label: "24h", textColor: "text-neutral-300", hoverColor: "teal" }
+                                            ]}
+                                        />
+                                        
+                                        {/* AM/PM Switcher moved here */}
+                                        {effective12h && (
+                                            <div className="inline-flex rounded-lg overflow-hidden ring-1 ring-[#46D6C8]/20 bg-white/5 p-0.5 h-9 items-center w-fit">
+                                                {(["AM", "PM"] as const).map((p) => {
+                                                    const curH = eventData.start_datetime ? new Date(eventData.start_datetime).getHours() : 0;
+                                                    const active = (p === "AM" && curH < 12) || (p === "PM" && curH >= 12);
+                                                    return (
+                                                        <button
+                                                            key={p}
+                                                            onClick={() => {
+                                                                const d = eventData.start_datetime ? new Date(eventData.start_datetime) : new Date();
+                                                                const h = d.getHours();
+                                                                if (p === "AM" && h >= 12) d.setHours(h - 12);
+                                                                if (p === "PM" && h < 12) d.setHours(h + 12);
+                                                                onChange({ target: { name: 'start_datetime', value: d.toISOString() } });
+                                                            }}
+                                                            className={`px-2 h-full text-xs font-semibold transition rounded-md flex items-center
+                                                              ${active
+                                                                    ? "bg-[#46D6C8] text-[#04070A]"
+                                                                    : "text-gray-400 hover:text-white hover:bg-white/10"}
+                                                            `}
+                                                        >
+                                                            {p}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </div>
-
-                <hr className="border-white/10 my-4" />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
-                        <Label className="text-white">Ліміт учасників</Label>
-                        <Input 
-                            name="max_players" 
-                            type="number" 
-                            value={eventData.max_players} 
-                            onChange={onChange} 
-                            placeholder="100" 
+                        <Label className={labelClasses}>Ліміт учасників</Label>
+                        <Input
+                            name="max_players"
+                            type="number"
+                            value={eventData.max_players}
+                            onChange={onChange}
+                            placeholder="100"
                             autoComplete="off"
-                            className="bg-white/5 border-white/10 text-white hover:border-[#46D6C8]/50 focus:border-[#46D6C8] focus:ring-0 focus:outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className={`${getInputClass('max_players')} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-white">Ціна</Label>
-                        <Input 
-                            name="price_amount" 
-                            type="number" 
-                            value={eventData.price_amount} 
-                            onChange={onChange} 
-                            placeholder="400" 
+                        <Label className={labelClasses}>Ціна</Label>
+                        <Input
+                            name="price_amount"
+                            type="number"
+                            value={eventData.price_amount}
+                            onChange={onChange}
+                            placeholder="400"
                             autoComplete="off"
-                            className="bg-white/5 border-white/10 text-white hover:border-[#46D6C8]/50 focus:border-[#46D6C8] focus:ring-0 focus:outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className={`${getInputClass('price_amount')} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-white">Валюта</Label>
-                        <Select value={eventData.price_currency} onValueChange={(v) => handleSelectChange('price_currency', v)}>
-                            <SelectTrigger className="bg-white/5 border-white/10 text-white hover:border-[#46D6C8]/50 focus:border-[#46D6C8] focus:ring-0 focus:outline-none transition-colors">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-neutral-900 border-white/10">
-                                <SelectItem value="UAH" className="text-white focus:bg-white/10 focus:text-white">UAH</SelectItem>
-                                <SelectItem value="PLN" className="text-white focus:bg-white/10 focus:text-white">PLN</SelectItem>
-                                <SelectItem value="EUR" className="text-white focus:bg-white/10 focus:text-white">EUR</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <Label className={labelClasses}>Валюта</Label>
+                        <NeonPopoverList
+                            value={eventData.price_currency}
+                            onChange={(v) => handleSelectChange('price_currency', v)}
+                            width={0}
+                            minW={0}
+                            className="flex w-full lg:w-full h-10"
+                            color="teal"
+                            options={[
+                                { id: "UAH", label: "UAH", textColor: "text-neutral-300", hoverColor: "teal" },
+                                { id: "PLN", label: "PLN", textColor: "text-neutral-300", hoverColor: "teal" },
+                                { id: "EUR", label: "EUR", textColor: "text-neutral-300", hoverColor: "teal" }
+                            ]}
+                        />
                     </div>
                 </div>
-            </Card>
+            </div>
+
+            <div className="border-b border-white/10" />
 
             {/* Visualization & Amenities */}
-            <Card title="Візуалізація та зручності" icon={Camera} subtitle="Маркетинг та логістика">
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-[#46D6C8] flex items-center gap-2">
+                    <Camera size={20} className="text-[#46D6C8]" />
+                    Візуалізація та зручності
+                </h3>
                 <div className="space-y-2">
-                    <ImageUploader 
+                    <ImageUploader
                         label="Фото полігону"
-                        currentUrl={eventData.main_image_url} 
-                        onUpload={handleImageUpload} 
+                        currentUrl={eventData.main_image_url}
+                        onUpload={handleImageUpload}
                     />
                 </div>
 
                 <div className="space-y-3 pt-4 border-t border-white/10">
                     <div className="flex items-center justify-between">
-                        <Label className="text-white">Зручності на місці</Label>
+                        <Label className={labelClasses}>Зручності на місці</Label>
                         <button
                             type="button"
                             onClick={handleAddAmenity}
@@ -585,7 +713,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ eventData, onChange, 
                                     onChange={(e) => handleAmenityChange(index, e.target.value)}
                                     placeholder="Наприклад: Гарячі напої, Парковка..."
                                     autoComplete="off"
-                                    className="bg-white/5 border-white/10 text-white hover:border-[#46D6C8]/50 focus:border-[#46D6C8] focus:ring-0 focus:outline-none transition-colors"
+                                    className={getInputClass('amenities')}
                                 />
                                 <button
                                     type="button"
@@ -598,15 +726,6 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({ eventData, onChange, 
                         ))}
                     </div>
                 </div>
-            </Card>
-
-            <div className="flex justify-end gap-4 pt-4 pb-16">
-                <button onClick={onCancel} className="px-4 py-2 rounded-lg text-white hover:bg-white/10 transition-colors">
-                    Скасувати
-                </button>
-                <button onClick={onSave} className="px-6 py-2 rounded-lg bg-[#46D6C8] text-black font-semibold hover:bg-[#3bc2b5] transition-colors shadow-[0_0_15px_rgba(70,214,200,0.3)]">
-                    {isEditing ? 'Зберегти зміни' : 'Зберегти подію'}
-                </button>
             </div>
         </div>
     );

@@ -149,7 +149,7 @@ const WorkingNavbar = () => {
                                 </div>
                                 <div className="hidden sm:block">
                                     <h1 className="font-rajdhani text-xl font-bold text-foreground">
-                                        {settings?.siteName || 'RAVEN STRIKE'}
+                                        {settings?.siteName || 'AIRSOFT WROCLAW'}
                                     </h1>
                                     <p className="font-inter text-xs text-muted-foreground uppercase tracking-wider">
                                         {settings?.tagline || 'TACTICAL AIRSOFT'}

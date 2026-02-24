@@ -45,6 +45,7 @@ export default function EmailSection({ email, isVerified, onEmailChanged }: Emai
                     'profile.email.verificationSentDesc',
                     'Проверьте входящие письма для подтверждения email'
                 ),
+                variant: 'success',
             });
         } catch (error: any) {
             toast({
@@ -64,6 +65,7 @@ export default function EmailSection({ email, isVerified, onEmailChanged }: Emai
                 'profile.email.changeSuccessDesc',
                 'Проверьте новый email для подтверждения'
             ),
+            variant: 'success',
         });
 
         if (onEmailChanged) {
@@ -119,8 +121,8 @@ export default function EmailSection({ email, isVerified, onEmailChanged }: Emai
 
                 {/* Resend Verification Alert */}
                 {!isVerified && (
-                    <Alert className="bg-yellow-500/5 border-yellow-500/20">
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <Alert variant="warning">
+                        <AlertCircle className="h-4 w-4" />
                         <AlertDescription className="flex items-center justify-between gap-2">
                             <span className="text-sm">
                                 {t(
@@ -135,7 +137,7 @@ export default function EmailSection({ email, isVerified, onEmailChanged }: Emai
                                 onClick={handleResendVerification}
                                 disabled={isResending}
                                 className={cn(
-                                    'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10',
+                                    'text-amber-100 hover:text-white hover:bg-amber-500/15',
                                     'cursor-target'
                                 )}
                             >

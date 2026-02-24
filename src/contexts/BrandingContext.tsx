@@ -40,7 +40,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 // Set default settings if table doesn't exist or has issues
                 setSettings({
                     id: 'default',
-                    site_name: 'RAVEN STRIKE FORCE',
+                    site_name: 'AIRSOFT WROCLAW',
                     tagline_base: 'Airsoft is more than a game',
                     primary_color: 'hsl(122, 39%, 49%)',
                     accent_color: 'hsl(4, 90%, 58%)',
@@ -54,7 +54,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             // Set default settings on error
             setSettings({
                 id: 'default',
-                site_name: 'RAVEN STRIKE FORCE',
+                site_name: 'AIRSOFT WROCLAW',
                 tagline_base: 'Airsoft is more than a game',
                 primary_color: 'hsl(122, 39%, 49%)',
                 accent_color: 'hsl(4, 90%, 58%)',

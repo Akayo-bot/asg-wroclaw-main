@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import PasswordChangeForm from '@/components/auth/PasswordChangeForm';
 import AvatarUploader from '@/components/AvatarUploader';
 import EmailSection from '@/components/EmailSection';
+import ActiveSessions from '@/components/ActiveSessions';
 import { SaveButton } from '@/components/SaveButton';
 import { HoloPanel } from '@/components/HoloPanel';
 import NeonButton from '@/components/NeonButton';
@@ -57,6 +58,7 @@ export default function ProfilePage() {
 
     const [formData, setFormData] = useState({
         display_name: profile?.display_name || '',
+        real_name: (profile as any)?.real_name || '',
         bio: profile?.bio || '',
         avatar_url: profile?.avatar_url || '',
         preferred_language: profile?.preferred_language || language,
@@ -76,6 +78,7 @@ export default function ProfilePage() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     type Strength = 0 | 1 | 2 | 3 | 4;
+    const filledInactiveFieldClass = "[&:not(:focus):not(:placeholder-shown)]:bg-[#181f1c] [&:not(:focus):not(:placeholder-shown)]:ring-white/10 [&:not(:focus):not(:placeholder-shown)]:border-white/10";
     const calcStrength = (pw: string): Strength => {
         let s = 0;
         if (pw.length >= 8) s++;
@@ -92,6 +95,7 @@ export default function ProfilePage() {
         if (profile) {
             const data = {
                 display_name: profile.display_name || '',
+                real_name: (profile as any)?.real_name || '',
                 bio: profile.bio || '',
                 avatar_url: profile.avatar_url || '',
                 preferred_language: profile.preferred_language || language,
@@ -292,8 +296,9 @@ export default function ProfilePage() {
             setInitialFormData(formData);
 
             toast({
-                title: t('common.success'),
-                description: t('profile.saved')
+                title: t('common.success', 'Успіх'),
+                description: t('profile.saved', 'Профіль успішно збережено'),
+                variant: 'success',
             });
         } catch (error: any) {
             // 🔥 ДЕТАЛЬНА ОБРОБКА ПОМИЛОК 🔥
@@ -342,7 +347,11 @@ export default function ProfilePage() {
             setIsPasswordSaving(true);
             const { error } = await supabase.auth.updateUser({ password: newPassword });
             if (error) throw error;
-            toast({ title: t('common.success'), description: t('profile.passwordChanged', 'Password Changed') });
+            toast({
+                title: t('common.success'),
+                description: t('profile.passwordChanged', 'Password Changed'),
+                variant: 'success',
+            });
             setNewPassword('');
             setConfirmPassword('');
         } catch (err: any) {
@@ -358,7 +367,7 @@ export default function ProfilePage() {
     }
 
     return (
-        <Layout showBreadcrumbs>
+        <Layout>
             <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 py-12">
                 <div className="container mx-auto px-4 max-w-4xl">
                     <div className="text-center mb-8">
@@ -450,7 +459,7 @@ export default function ProfilePage() {
                                     <form onSubmit={handleSubmit} className="space-y-6">
                                         <AvatarUploader
                                             currentAvatarUrl={formData.avatar_url}
-                                            userId={profile.user_id}
+                                            userId={profile.id}
                                             onAvatarChange={(avatarPath) => setFormData({ ...formData, avatar_url: avatarPath || '' })}
                                             displayName={formData.display_name}
                                         />
@@ -458,7 +467,78 @@ export default function ProfilePage() {
                                         <div className="my-4 h-px bg-gradient-to-r from-transparent via-emerald-500/25 to-transparent" />
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            {/* === Поле 1: Display Name === */}
+                                            {/* === Рядок 1, Поле 1: Реальне ім'я === */}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <UserCircle className="w-4 h-4 text-emerald-300/70 drop-shadow-[0_0_8px_rgba(16,185,129,.25)]" />
+                                                    <Label htmlFor="real_name" className="text-sm text-emerald-200/70">
+                                                        Реальне ім'я (optional)
+                                                    </Label>
+                                                </div>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Input
+                                                                id="real_name"
+                                                                value={formData.real_name}
+                                                                onChange={(e) => {
+                                                                    setFormData(prev => ({ ...prev, real_name: e.target.value }));
+                                                                    setFieldChanged('real_name');
+                                                                }}
+                                                                onKeyDown={handleEnterKeyDown}
+                                                                placeholder="Напр. Іван Петренко"
+                                                                autoComplete="name"
+                                                                className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 autofill:!bg-background autofill:!shadow-[inset_0_0_0px_1000px_rgb(var(--background))] hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.05)] ${filledInactiveFieldClass} ${fieldChanged === 'real_name'
+                                                                    ? 'ring-2 ring-emerald-500/50'
+                                                                    : ''
+                                                                    }`}
+                                                                maxLength={50}
+                                                            />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Видно лише організаторам та адміністраторам.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Для організаторів (інші гравці не бачать)
+                                                </p>
+                                            </div>
+
+                                            {/* === Рядок 1, Поле 2: Позивний === */}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <UserCircle className="w-4 h-4 text-emerald-300/70 drop-shadow-[0_0_8px_rgba(16,185,129,.25)]" />
+                                                    <Label htmlFor="callsign" className="text-sm text-emerald-200/70">
+                                                        Позивний (optional)
+                                                    </Label>
+                                                </div>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Input
+                                                                id="callsign"
+                                                                value={formData.callsign}
+                                                                onChange={handleCallsignChange}
+                                                                placeholder="Напр. 'Артист'"
+                                                                autoComplete="off"
+                                                                className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 autofill:!bg-background autofill:!shadow-[inset_0_0_0px_1000px_rgb(var(--background))] hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.05)] ${filledInactiveFieldClass} ${fieldChanged === 'callsign'
+                                                                    ? 'ring-2 ring-emerald-500/50'
+                                                                    : ''
+                                                                    }`}
+                                                            />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Це ім'я буде видно іншим користувачам.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Ваш ігровий нік (не унікальний)
+                                                </p>
+                                            </div>
+
+                                            {/* === Рядок 2, Поле 1: Display Name === */}
                                             <div className="space-y-2">
                                                 <div className="flex items-center gap-2">
                                                     <UserCircle className="w-4 h-4 text-emerald-300/70 drop-shadow-[0_0_8px_rgba(16,185,129,.25)]" />
@@ -481,7 +561,7 @@ export default function ProfilePage() {
                                                                 onKeyDown={handleEnterKeyDown}
                                                                 placeholder={t('profile.displayNamePlaceholder', 'Enter your display name')}
                                                                 autoComplete="off"
-                                                                className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 autofill:!bg-background autofill:!shadow-[inset_0_0_0px_1000px_rgb(var(--background))] hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.05)] ${errors.display_name ? 'ring-red-500/40' : ''} ${fieldChanged === 'display_name'
+                                                                className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 autofill:!bg-background autofill:!shadow-[inset_0_0_0px_1000px_rgb(var(--background))] hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.05)] ${filledInactiveFieldClass} ${errors.display_name ? 'ring-red-500/40' : ''} ${fieldChanged === 'display_name'
                                                                     ? 'ring-2 ring-emerald-500/50'
                                                                     : ''
                                                                     }`}
@@ -491,7 +571,7 @@ export default function ProfilePage() {
                                                             />
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            <p>Это имя будет видно другим пользователям.</p>
+                                                            <p>Це ім'я буде видно іншим користувачам.</p>
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
@@ -507,32 +587,42 @@ export default function ProfilePage() {
                                                 )}
                                             </div>
 
-                                            {/* === Поле 2: Позывной (НОВЕ) === */}
+                                            {/* === Рядок 2, Поле 2: Телефон === */}
                                             <div className="space-y-2">
                                                 <div className="flex items-center gap-2">
-                                                    <UserCircle className="w-4 h-4 text-emerald-300/70 drop-shadow-[0_0_8px_rgba(16,185,129,.25)]" />
-                                                    <Label htmlFor="callsign" className="text-sm text-emerald-200/70">
-                                                        Позывной (optional)
+                                                    <Smartphone className="w-4 h-4 text-emerald-300/70 drop-shadow-[0_0_8px_rgba(16,185,129,.25)]" />
+                                                    <Label htmlFor="phone" className="text-sm text-emerald-200/70">
+                                                        Телефон (optional)
                                                     </Label>
                                                 </div>
-                                                <Input
-                                                    id="callsign"
-                                                    value={formData.callsign}
-                                                    onChange={handleCallsignChange}
-                                                    placeholder="Напр. 'Артист'"
-                                                    autoComplete="off"
-                                                    className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 autofill:!bg-background autofill:!shadow-[inset_0_0_0px_1000px_rgb(var(--background))] hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.05)] ${fieldChanged === 'callsign'
-                                                        ? 'ring-2 ring-emerald-500/50'
-                                                        : ''
-                                                        }`}
-                                                />
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Input
+                                                                id="phone"
+                                                                type="tel"
+                                                                value={formData.phone}
+                                                                onChange={handlePhoneChange}
+                                                                placeholder="+380..."
+                                                                autoComplete="tel"
+                                                                className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 autofill:!bg-background autofill:!shadow-[inset_0_0_0px_1000px_rgb(var(--background))] hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.05)] ${filledInactiveFieldClass} ${fieldChanged === 'phone'
+                                                                    ? 'ring-2 ring-emerald-500/50'
+                                                                    : ''
+                                                                    }`}
+                                                            />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Видно лише організаторам та адміністраторам.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Ваш ігровий нік (не унікальний)
+                                                    Для зв'язку з організатором
                                                 </p>
                                             </div>
 
-                                            {/* === Поле 3: Email === */}
-                                            <div>
+                                            {/* === Email (окремий рядок) === */}
+                                            <div className="md:col-span-2">
                                                 <EmailSection
                                                     email={user?.email || ''}
                                                     isVerified={!!user?.email_confirmed_at}
@@ -544,31 +634,6 @@ export default function ProfilePage() {
                                                         }
                                                     }}
                                                 />
-                                            </div>
-
-                                            {/* === Поле 4: Телефон (НОВЕ) === */}
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    <Smartphone className="w-4 h-4 text-emerald-300/70 drop-shadow-[0_0_8px_rgba(16,185,129,.25)]" />
-                                                    <Label htmlFor="phone" className="text-sm text-emerald-200/70">
-                                                        Телефон (optional)
-                                                    </Label>
-                                                </div>
-                                                <Input
-                                                    id="phone"
-                                                    type="tel"
-                                                    value={formData.phone}
-                                                    onChange={handlePhoneChange}
-                                                    placeholder="+380..."
-                                                    autoComplete="tel"
-                                                    className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 autofill:!bg-background autofill:!shadow-[inset_0_0_0px_1000px_rgb(var(--background))] hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.05)] ${fieldChanged === 'phone'
-                                                        ? 'ring-2 ring-emerald-500/50'
-                                                        : ''
-                                                        }`}
-                                                />
-                                                <p className="text-xs text-muted-foreground">
-                                                    Потрібен для зв'язку з організаторами
-                                                </p>
                                             </div>
                                         </div>
 
@@ -594,7 +659,7 @@ export default function ProfilePage() {
                                                 onKeyDown={handleEnterKeyDown}
                                                 placeholder="🎯 Люблю страйкбол, техніку та FPV-зйомку."
                                                 rows={4}
-                                                className={`cursor-target resize-none w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 min-h-[120px] ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] ${errors.bio ? 'ring-red-500/40 focus:ring-red-500/35 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(239,68,68,.05)]' : 'focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.05)]'} ${fieldChanged === 'bio'
+                                                className={`cursor-target resize-none w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 min-h-[120px] border-none ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus-visible:ring-offset-0 ${filledInactiveFieldClass} ${errors.bio ? 'ring-red-500/40 focus:ring-red-500/35 focus-visible:ring-red-500/35 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(239,68,68,.05)]' : 'focus:ring-emerald-400/40 focus-visible:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.05)]'} ${fieldChanged === 'bio'
                                                     ? 'ring-2 ring-emerald-500/50'
                                                     : ''
                                                     }`}
@@ -842,7 +907,7 @@ export default function ProfilePage() {
                                                         value={newPassword}
                                                         onChange={(e) => setNewPassword(e.target.value)}
                                                         placeholder="Enter new password"
-                                                        className="cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.08)]"
+                                                        className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.08)] ${filledInactiveFieldClass}`}
                                                     />
                                                     {/* Strength bar */}
                                                     <div className="mt-2">
@@ -864,7 +929,7 @@ export default function ProfilePage() {
                                                         value={confirmPassword}
                                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                                         placeholder="Confirm new password"
-                                                        className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] ${mismatch ? 'ring-red-500/50 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(239,68,68,.08)]' : 'focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.08)]'}`}
+                                                        className={`cursor-target w-full rounded-xl bg-[#151b19] text-emerald-50 px-3 py-2 ring-1 ring-white/6 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)] outline-none transition-all duration-200 placeholder:text-neutral-500 hover:bg-[#181f1c] hover:ring-white/10 focus:bg-[#161c1a] ${filledInactiveFieldClass} ${mismatch ? 'ring-red-500/50 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(239,68,68,.08)]' : 'focus:ring-emerald-400/40 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,.6),0_0_0_4px_rgba(16,185,129,.08)]'}`}
                                                     />
                                                     {mismatch ? (
                                                         <p className="mt-1 inline-flex items-center gap-1 text-sm text-red-400">
@@ -928,9 +993,7 @@ export default function ProfilePage() {
                                                 <Clock className="w-4 h-4 text-emerald-300/70" />
                                                 Active Sessions
                                             </h3>
-                                            <div className="rounded-xl bg-[#151b19] p-4 ring-1 ring-white/6">
-                                                <div className="text-sm text-muted-foreground">No active sessions</div>
-                                            </div>
+                                            <ActiveSessions />
                                         </div>
 
                                         <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/25 to-transparent" />
@@ -973,20 +1036,22 @@ export default function ProfilePage() {
 
             {/* Reset Changes Dialog */}
             <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-                <AlertDialogContent>
+                <AlertDialogContent className="max-w-[560px] rounded-2xl border border-emerald-400/25 bg-[rgba(20,24,22,0.86)] p-6 text-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,.18),0_20px_60px_-20px_rgba(16,185,129,.45)] backdrop-blur-2xl">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>{t('profile.resetChanges', 'Reset Changes')}?</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="text-2xl font-semibold tracking-tight text-emerald-50">
+                            {t('profile.resetChanges', 'Reset Changes')}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-base leading-relaxed text-emerald-100/75">
                             Сбросить изменения? Все несохранённые данные будут потеряны.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel className="cursor-target">
+                    <AlertDialogFooter className="gap-2 sm:gap-3">
+                        <AlertDialogCancel className="cursor-target mt-0 h-11 rounded-xl border border-white/15 bg-[rgba(15,23,42,.45)] px-5 text-neutral-100 transition-all hover:bg-[rgba(31,41,55,.65)] hover:text-white">
                             {t('common.cancel')}
                         </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={confirmReset}
-                            className="cursor-target bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="cursor-target h-11 rounded-xl border border-emerald-400/35 bg-[rgba(16,185,129,.16)] px-5 text-emerald-100 ring-1 ring-emerald-400/25 transition-all hover:bg-[rgba(16,185,129,.24)] hover:text-white hover:shadow-[0_0_30px_-10px_rgba(16,185,129,.65)] active:translate-y-[1px]"
                         >
                             {t('profile.resetChanges', 'Reset Changes')}
                         </AlertDialogAction>

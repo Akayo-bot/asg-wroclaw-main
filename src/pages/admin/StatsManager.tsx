@@ -1,14 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '@/contexts/I18nContext';
 import { supabase } from '@/integrations/supabase/client';
 import LoadingScreen from '@/components/LoadingScreen';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ResponsiveBar } from '@nivo/bar';
-import { ResponsiveLine } from '@nivo/line';
-import { Download, Users, FileText, Image, Calendar, Trophy, Eye, UserCheck, TrendingUp } from 'lucide-react';
+import AdminCard from '@/components/admin/AdminCard';
+import { KpiTileSoft } from '@/components/admin/KpiTileSoft';
+import MiniAreaChart from '@/components/widgets/MiniStats';
+import { useDailyStats } from '@/hooks/useDailyStats';
+import {
+    Download,
+    Users,
+    FileText,
+    Image,
+    Calendar,
+    Trophy,
+    Eye,
+    UserCheck,
+    TrendingUp,
+    ArrowUpRight,
+    ArrowDownRight,
+    ChevronDown,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+/* ——————————————————————————————————————————
+   Types
+—————————————————————————————————————————— */
 
 interface Stats {
     total_articles: number;
@@ -17,6 +33,7 @@ interface Stats {
     total_events: number;
     upcoming_events: number;
     completed_events: number;
+    cancelled_events: number;
     total_users: number;
     admin_users: number;
     editor_users: number;
@@ -42,6 +59,25 @@ interface TopEvent {
     registration_count: number;
 }
 
+interface GrowthData {
+    users: number | null;
+    articles: number | null;
+    events: number | null;
+}
+
+type PeriodKey = '7d' | '30d' | 'year' | 'all';
+
+const PERIOD_OPTIONS: { key: PeriodKey; label: string; days: number }[] = [
+    { key: '7d', label: 'Останні 7 днів', days: 7 },
+    { key: '30d', label: 'Останні 30 днів', days: 30 },
+    { key: 'year', label: 'Цей рік', days: 365 },
+    { key: 'all', label: 'За весь час', days: 0 },
+];
+
+/* ——————————————————————————————————————————
+   Component
+—————————————————————————————————————————— */
+
 const StatsManager = () => {
     const { t, language } = useI18n();
     const { toast } = useToast();
@@ -49,19 +85,49 @@ const StatsManager = () => {
     const [topArticles, setTopArticles] = useState<TopArticle[]>([]);
     const [topEvents, setTopEvents] = useState<TopEvent[]>([]);
     const [loading, setLoading] = useState(true);
+    const [growth, setGrowth] = useState<GrowthData>({ users: null, articles: null, events: null });
+
+    // Period filter
+    const [period, setPeriod] = useState<PeriodKey>('7d');
+    const [periodOpen, setPeriodOpen] = useState(false);
+
+    const currentPeriod = PERIOD_OPTIONS.find(p => p.key === period)!;
+    const chartDays = currentPeriod.days || 365; // "all" defaults to 365 for chart display
+
+    // Chart data with configurable period
+    const { data: usersChart, isLoading: loadingUsers } = useDailyStats('profiles', 'created_at', chartDays);
+    const { data: articlesChart, isLoading: loadingArticles } = useDailyStats('articles', 'created_at', chartDays);
 
     useEffect(() => {
         fetchStats();
         fetchTopContent();
     }, []);
 
+    useEffect(() => {
+        fetchGrowth();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [period]);
+
     const fetchStats = async () => {
         try {
             const { data, error } = await supabase.rpc('get_admin_stats');
             if (error) throw error;
 
-            const statsData = data as unknown as Stats;
-            setStats(statsData);
+            const rpcStats = data as unknown as Stats;
+
+            // Count cancelled events directly (RPC doesn't include them)
+            const [{ count: cancelledCount }, { count: completedCount }, { count: upcomingCount }] = await Promise.all([
+                supabase.from('events').select('id', { count: 'exact', head: true }).eq('status', 'cancelled'),
+                supabase.from('events').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
+                supabase.from('events').select('id', { count: 'exact', head: true }).in('status', ['upcoming', 'registration_open', 'registration_closed']),
+            ]);
+
+            setStats({
+                ...rpcStats,
+                cancelled_events: cancelledCount ?? 0,
+                completed_events: completedCount ?? 0,
+                upcoming_events: upcomingCount ?? 0,
+            });
         } catch (error) {
             console.error('Error fetching stats:', error);
             toast({
@@ -74,7 +140,6 @@ const StatsManager = () => {
 
     const fetchTopContent = async () => {
         try {
-            // Fetch top articles by views
             const { data: articlesData, error: articlesError } = await supabase
                 .from('articles')
                 .select('id, title_uk, title_ru, title_pl, views_count')
@@ -85,16 +150,9 @@ const StatsManager = () => {
             if (articlesError) throw articlesError;
             setTopArticles(articlesData || []);
 
-            // Fetch top events by registrations
             const { data: eventsData, error: eventsError } = await supabase
                 .from('events')
-                .select(`
-          id, 
-          title_uk, 
-          title_ru, 
-          title_pl,
-          event_registrations(count)
-        `)
+                .select(`id, title_uk, title_ru, title_pl, event_registrations(count)`)
                 .order('created_at', { ascending: false })
                 .limit(5);
 
@@ -105,7 +163,9 @@ const StatsManager = () => {
                 title_uk: event.title_uk,
                 title_ru: event.title_ru,
                 title_pl: event.title_pl,
-                registration_count: (event as any).event_registrations?.length || 0,
+                registration_count: (event as Record<string, unknown>).event_registrations
+                    ? ((event as Record<string, unknown>).event_registrations as unknown[]).length
+                    : 0,
             }));
 
             setTopEvents(eventsWithCounts);
@@ -116,7 +176,78 @@ const StatsManager = () => {
         }
     };
 
-    const exportStats = async () => {
+    /* ---------- Growth % calculation based on period ---------- */
+    const fetchGrowth = useCallback(async () => {
+        const now = new Date();
+        let currentStart: string;
+        let prevStart: string;
+        let prevEnd: string;
+
+        switch (period) {
+            case '7d': {
+                const cs = new Date(now.getTime() - 7 * 86400000);
+                const ps = new Date(now.getTime() - 14 * 86400000);
+                currentStart = cs.toISOString();
+                prevStart = ps.toISOString();
+                prevEnd = cs.toISOString();
+                break;
+            }
+            case '30d': {
+                const cs = new Date(now.getTime() - 30 * 86400000);
+                const ps = new Date(now.getTime() - 60 * 86400000);
+                currentStart = cs.toISOString();
+                prevStart = ps.toISOString();
+                prevEnd = cs.toISOString();
+                break;
+            }
+            case 'year': {
+                const yearStart = new Date(now.getFullYear(), 0, 1);
+                const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+                const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+                currentStart = yearStart.toISOString();
+                prevStart = lastYearStart.toISOString();
+                prevEnd = lastYearEnd.toISOString();
+                break;
+            }
+            default: {
+                // "all" — no growth comparison
+                setGrowth({ users: null, articles: null, events: null });
+                return;
+            }
+        }
+
+        try {
+            const [
+                { count: usersCurr }, { count: usersPrev },
+                { count: articlesCurr }, { count: articlesPrev },
+                { count: eventsCurr }, { count: eventsPrev },
+            ] = await Promise.all([
+                supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', currentStart),
+                supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lte('created_at', prevEnd),
+                supabase.from('articles').select('id', { count: 'exact', head: true }).gte('created_at', currentStart),
+                supabase.from('articles').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lte('created_at', prevEnd),
+                supabase.from('events').select('id', { count: 'exact', head: true }).gte('created_at', currentStart),
+                supabase.from('events').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lte('created_at', prevEnd),
+            ]);
+
+            const calcGrowth = (current: number | null, prev: number | null): number | null => {
+                if (prev === null || prev === 0) return current && current > 0 ? 100 : 0;
+                if (current === null) return 0;
+                return Math.round(((current - prev) / prev) * 100);
+            };
+
+            setGrowth({
+                users: calcGrowth(usersCurr, usersPrev),
+                articles: calcGrowth(articlesCurr, articlesPrev),
+                events: calcGrowth(eventsCurr, eventsPrev),
+            });
+        } catch (error) {
+            console.error('Error fetching growth:', error);
+        }
+    }, [period]);
+
+    /* ---------- CSV Export ---------- */
+    const handleExport = () => {
         if (!stats) return;
 
         const csvData = [
@@ -127,6 +258,7 @@ const StatsManager = () => {
             ['Total Events', stats.total_events],
             ['Upcoming Events', stats.upcoming_events],
             ['Completed Events', stats.completed_events],
+            ['Cancelled Events', stats.cancelled_events],
             ['Total Users', stats.total_users],
             ['Admin Users', stats.admin_users],
             ['Editor Users', stats.editor_users],
@@ -153,35 +285,29 @@ const StatsManager = () => {
         });
     };
 
+    /* ---------- Helpers ---------- */
     const getTitle = (item: TopArticle | TopEvent) => {
-        const titles = {
+        const titles: Record<string, string> = {
             uk: item.title_uk,
             ru: item.title_ru,
             pl: item.title_pl,
-            en: item.title_uk, // fallback
+            en: item.title_uk,
         };
         return titles[language] || item.title_uk;
     };
 
-    // Sample chart data (in a real app, this would come from your analytics)
-    const chartData = [
-        { name: t('stats.chart.week1', 'Week 1'), registrations: 12, views: 340 },
-        { name: t('stats.chart.week2', 'Week 2'), registrations: 19, views: 520 },
-        { name: t('stats.chart.week3', 'Week 3'), registrations: 8, views: 380 },
-        { name: t('stats.chart.week4', 'Week 4'), registrations: 25, views: 610 },
-    ];
+    const renderGrowthBadge = (value: number | null) => {
+        if (value === null) return null;
+        const isPositive = value >= 0;
+        return (
+            <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                {isPositive ? '+' : ''}{value}%
+            </span>
+        );
+    };
 
-    // Преобразуем данные для Nivo Bar Chart
-    const barData = chartData.map(item => ({
-        week: item.name,
-        registrations: item.registrations,
-    }));
-
-    // Преобразуем данные для Nivo Line Chart
-    const lineData = [{
-        id: 'views',
-        data: chartData.map(item => ({ x: item.name, y: item.views })),
-    }];
+    const chartLabel = currentPeriod.key === 'all' ? '(рік)' : `(${currentPeriod.label.toLowerCase()})`;
 
     if (loading) {
         return <LoadingScreen label="SCANNING TARGETS…" size={140} />;
@@ -190,247 +316,243 @@ const StatsManager = () => {
     if (!stats) {
         return (
             <div className="text-center py-8">
-                <p className="text-muted-foreground">{t('stats.no_data', 'No statistics available')}</p>
+                <p className="text-neutral-400">{t('stats.no_data', 'No statistics available')}</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="mx-auto max-w-[1400px] xl:max-w-[1500px] space-y-6 lg:space-y-8">
+
+            {/* Header + Period Filter + Export */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">{t('stats.title', 'Statistics & Analytics')}</h1>
-                    <p className="text-muted-foreground">{t('stats.description', 'Overview of your site performance and content')}</p>
+                    <h1 className="text-xl font-bold text-[#46D6C8]">
+                        {t('stats.title', 'Статистика & Аналітика')}
+                    </h1>
+                    <p className="text-sm text-neutral-400 mt-0.5">
+                        {t('stats.description', 'Огляд продуктивності та контенту сайту')}
+                    </p>
                 </div>
 
-                <Button onClick={exportStats}>
-                    <Download className="h-4 w-4 mr-2" />
-                    {t('stats.export', 'Export CSV')}
-                </Button>
+                <div className="flex items-center gap-3">
+                    {/* Period Dropdown */}
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setPeriodOpen(prev => !prev)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 text-sm text-neutral-200 transition-all duration-200"
+                            aria-label="Обрати період"
+                            aria-expanded={periodOpen}
+                            tabIndex={0}
+                        >
+                            {currentPeriod.label}
+                            <ChevronDown className={`h-4 w-4 text-neutral-400 transition-transform duration-200 ${periodOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {periodOpen && (
+                            <>
+                                {/* Invisible backdrop to close dropdown */}
+                                <div
+                                    className="fixed inset-0 z-40"
+                                    onClick={() => setPeriodOpen(false)}
+                                    onKeyDown={(e) => { if (e.key === 'Escape') setPeriodOpen(false); }}
+                                    role="button"
+                                    tabIndex={-1}
+                                    aria-label="Закрити меню"
+                                />
+                                <div className="absolute right-0 top-full mt-1 z-50 w-48 py-1 rounded-lg bg-[#0a0f0d] border border-white/10 shadow-xl">
+                                    {PERIOD_OPTIONS.map(opt => (
+                                        <button
+                                            key={opt.key}
+                                            type="button"
+                                            tabIndex={0}
+                                            aria-label={opt.label}
+                                            onClick={() => { setPeriod(opt.key); setPeriodOpen(false); }}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setPeriod(opt.key); setPeriodOpen(false); } }}
+                                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                                period === opt.key
+                                                    ? 'text-[#46D6C8] bg-[#46D6C8]/10'
+                                                    : 'text-neutral-300 hover:bg-white/5'
+                                            }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Export button */}
+                    <button
+                        type="button"
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#46D6C8]/10 ring-1 ring-[#46D6C8]/30 hover:shadow-[0_0_10px_rgba(70,214,200,0.4)] hover:ring-[#46D6C8]/50 hover:bg-[#46D6C8]/15 active:scale-[0.98] transition-all duration-200 text-sm text-[#46D6C8]"
+                        aria-label="Export CSV"
+                        tabIndex={0}
+                    >
+                        <Download className="h-4 w-4" />
+                        {t('stats.export', 'Експорт CSV')}
+                    </button>
+                </div>
             </div>
 
-            {/* Key Metrics */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{t('stats.total_users', 'Total Users')}</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.total_users}</div>
-                        <div className="flex gap-2 mt-2">
-                            <Badge variant="outline">{stats.admin_users} Admin</Badge>
-                            <Badge variant="outline">{stats.editor_users} Editor</Badge>
-                            <Badge variant="outline">{stats.regular_users} User</Badge>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{t('stats.content', 'Content')}</CardTitle>
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.total_articles}</div>
-                        <div className="flex gap-2 mt-2">
-                            <Badge variant="default">{stats.published_articles} Published</Badge>
-                            <Badge variant="secondary">{stats.draft_articles} Drafts</Badge>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{t('stats.events', 'Events')}</CardTitle>
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.total_events}</div>
-                        <div className="flex gap-2 mt-2">
-                            <Badge variant="default">{stats.upcoming_events} Upcoming</Badge>
-                            <Badge variant="outline">{stats.completed_events} Completed</Badge>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{t('stats.registrations', 'Registrations')}</CardTitle>
-                        <UserCheck className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.total_registrations}</div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                            {t('stats.total_event_registrations', 'Total event registrations')}
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{t('stats.gallery', 'Gallery')}</CardTitle>
-                        <Image className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.gallery_items}</div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                            {t('stats.total_gallery_items', 'Total gallery items')}
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{t('stats.team', 'Team')}</CardTitle>
-                        <Trophy className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.team_members}</div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                            {t('stats.active_team_members', 'Active team members')}
-                        </p>
-                    </CardContent>
-                </Card>
+            {/* ——— Global KPI tiles with growth ——— */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                <KpiTileSoft
+                    label="Користувачі"
+                    value={stats.total_users}
+                    sub={
+                        <span className="flex items-center gap-2">
+                            <span>{stats.admin_users} Admin · {stats.editor_users} Editor · {stats.regular_users} User</span>
+                            {renderGrowthBadge(growth.users)}
+                        </span>
+                    }
+                    icon={<Users className="h-4 w-4" />}
+                />
+                <KpiTileSoft
+                    label="Контент"
+                    value={stats.total_articles}
+                    sub={
+                        <span className="flex items-center gap-2">
+                            <span>{stats.published_articles} опубл. · {stats.draft_articles} черн.</span>
+                            {renderGrowthBadge(growth.articles)}
+                        </span>
+                    }
+                    icon={<FileText className="h-4 w-4" />}
+                />
+                <KpiTileSoft
+                    label="Події"
+                    value={stats.total_events}
+                    sub={
+                        <span className="flex items-center gap-2">
+                            <span>{stats.upcoming_events} заплан. · {stats.completed_events} заверш. · {stats.cancelled_events} скас.</span>
+                            {renderGrowthBadge(growth.events)}
+                        </span>
+                    }
+                    icon={<Calendar className="h-4 w-4" />}
+                />
+                <KpiTileSoft
+                    label="Реєстрації"
+                    value={stats.total_registrations}
+                    sub="Усього реєстр. на події"
+                    icon={<UserCheck className="h-4 w-4" />}
+                />
+                <KpiTileSoft
+                    label="Галерея"
+                    value={stats.gallery_items}
+                    sub="Фото у галереї"
+                    icon={<Image className="h-4 w-4" />}
+                />
+                <KpiTileSoft
+                    label="Команда"
+                    value={stats.team_members}
+                    sub="Активних учасників"
+                    icon={<Trophy className="h-4 w-4" />}
+                />
             </div>
 
-            {/* Charts */}
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5" />
-                            {t('stats.registrations_trend', 'Event Registrations Trend')}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div style={{ height: '300px' }}>
-                            <ResponsiveBar
-                                data={barData}
-                                keys={['registrations']}
-                                indexBy="week"
-                                margin={{ top: 20, right: 20, bottom: 50, left: 60 }}
-                                padding={0.3}
-                                colors={['hsl(var(--primary))']}
-                                axisTop={null}
-                                axisRight={null}
-                                axisBottom={{
-                                    tickSize: 5,
-                                    tickPadding: 5,
-                                    tickRotation: 0,
-                                }}
-                                axisLeft={{
-                                    tickSize: 5,
-                                    tickPadding: 5,
-                                    tickRotation: 0,
-                                }}
-                                enableGridY={true}
-                                enableLabel={false}
-                                animate={true}
-                                motionConfig="gentle"
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
+            {/* ——— Trend Charts (period-aware) ——— */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <AdminCard
+                    title={`Нові користувачі ${chartLabel}`}
+                    icon={<TrendingUp className="h-5 w-5 text-[#46D6C8]/80" />}
+                >
+                    <div className="h-[200px] -mx-2">
+                        <MiniAreaChart
+                            title=""
+                            data={usersChart}
+                            color="#46D6C8"
+                            isLoading={loadingUsers}
+                        />
+                    </div>
+                </AdminCard>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Eye className="h-5 w-5" />
-                            {t('stats.views_trend', 'Article Views Trend')}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div style={{ height: '300px' }}>
-                            <ResponsiveLine
-                                data={lineData}
-                                margin={{ top: 20, right: 20, bottom: 50, left: 60 }}
-                                xScale={{ type: 'point' }}
-                                yScale={{ type: 'linear', min: 0, max: 'auto' }}
-                                curve="monotoneX"
-                                axisTop={null}
-                                axisRight={null}
-                                axisBottom={{
-                                    tickSize: 5,
-                                    tickPadding: 5,
-                                    tickRotation: 0,
-                                }}
-                                axisLeft={{
-                                    tickSize: 5,
-                                    tickPadding: 5,
-                                    tickRotation: 0,
-                                }}
-                                enableGridX={false}
-                                enableGridY={true}
-                                enablePoints={true}
-                                pointSize={6}
-                                pointColor="hsl(var(--primary))"
-                                pointBorderWidth={2}
-                                pointBorderColor="#fff"
-                                colors={['hsl(var(--primary))']}
-                                lineWidth={2}
-                                enableArea={false}
-                                animate={true}
-                                motionConfig="gentle"
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
+                <AdminCard
+                    title={`Нові статті ${chartLabel}`}
+                    icon={<Eye className="h-5 w-5 text-[#46D6C8]/80" />}
+                >
+                    <div className="h-[200px] -mx-2">
+                        <MiniAreaChart
+                            title=""
+                            data={articlesChart}
+                            color="#8B5CF6"
+                            isLoading={loadingArticles}
+                        />
+                    </div>
+                </AdminCard>
             </div>
 
-            {/* Top Content */}
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('stats.top_articles', 'Top Articles by Views')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
+            {/* ——— Top Content Leaderboards ——— */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Top Articles by Views */}
+                <AdminCard
+                    title={t('stats.top_articles', 'Топ статей за переглядами')}
+                    icon={<Eye className="h-5 w-5 text-[#46D6C8]/80" />}
+                >
+                    {topArticles.length === 0 ? (
+                        <p className="text-sm text-neutral-500 py-4 text-center">
+                            Немає даних
+                        </p>
+                    ) : (
+                        <div className="space-y-2">
                             {topArticles.map((article, index) => (
-                                <div key={article.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                                    <div className="flex items-center gap-3">
-                                        <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center">
+                                <div
+                                    key={article.id}
+                                    className="flex items-center justify-between p-3 rounded-lg bg-neutral-900/60 ring-1 ring-[#46D6C8]/10"
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <span className="flex items-center justify-center h-7 w-7 rounded-full bg-[#46D6C8]/10 ring-1 ring-[#46D6C8]/25 text-xs font-bold text-[#46D6C8] shrink-0">
                                             {index + 1}
-                                        </Badge>
-                                        <div>
-                                            <p className="font-medium">{getTitle(article)}</p>
-                                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                                <Eye className="h-3 w-3" />
-                                                {article.views_count} {t('stats.views', 'views')}
-                                            </div>
-                                        </div>
+                                        </span>
+                                        <p className="text-sm font-medium text-neutral-200 truncate">
+                                            {getTitle(article)}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-xs text-neutral-400 shrink-0 ml-2">
+                                        <Eye className="h-3 w-3" />
+                                        <span className="text-[#46D6C8] font-medium">{article.views_count}</span>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </CardContent>
-                </Card>
+                    )}
+                </AdminCard>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('stats.top_events', 'Top Events by Registrations')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
+                {/* Top Events by Registrations */}
+                <AdminCard
+                    title={t('stats.top_events', 'Топ подій за реєстраціями')}
+                    icon={<UserCheck className="h-5 w-5 text-[#46D6C8]/80" />}
+                >
+                    {topEvents.length === 0 ? (
+                        <p className="text-sm text-neutral-500 py-4 text-center">
+                            Немає даних
+                        </p>
+                    ) : (
+                        <div className="space-y-2">
                             {topEvents.map((event, index) => (
-                                <div key={event.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                                    <div className="flex items-center gap-3">
-                                        <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center">
+                                <div
+                                    key={event.id}
+                                    className="flex items-center justify-between p-3 rounded-lg bg-neutral-900/60 ring-1 ring-[#46D6C8]/10"
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <span className="flex items-center justify-center h-7 w-7 rounded-full bg-[#46D6C8]/10 ring-1 ring-[#46D6C8]/25 text-xs font-bold text-[#46D6C8] shrink-0">
                                             {index + 1}
-                                        </Badge>
-                                        <div>
-                                            <p className="font-medium">{getTitle(event)}</p>
-                                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                                <UserCheck className="h-3 w-3" />
-                                                {event.registration_count} {t('stats.registrations_short', 'registrations')}
-                                            </div>
-                                        </div>
+                                        </span>
+                                        <p className="text-sm font-medium text-neutral-200 truncate">
+                                            {getTitle(event)}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-xs text-neutral-400 shrink-0 ml-2">
+                                        <UserCheck className="h-3 w-3" />
+                                        <span className="text-[#46D6C8] font-medium">{event.registration_count}</span>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </CardContent>
-                </Card>
+                    )}
+                </AdminCard>
             </div>
         </div>
     );

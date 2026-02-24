@@ -45,7 +45,7 @@ export const translations: Record<Language, Translations> = {
             goHome: 'Go to Home'
         },
         hero: {
-            title: 'RAVEN STRIKE FORCE',
+            title: 'AIRSOFT WROCLAW',
             subtitle: 'PROFESSIONAL AIRSOFT IN WROCŁAW',
             cta: 'Join the Team',
             stats: {
@@ -321,7 +321,7 @@ export const translations: Record<Language, Translations> = {
             },
             team: {
                 title: 'Our Team',
-                subtitle: 'Meet the Raven Strike Force members',
+                subtitle: 'Meet the Airsoft Wroclaw members',
                 noMembers: 'No team members found'
             },
             gallery: {
@@ -442,7 +442,7 @@ export const translations: Record<Language, Translations> = {
             goHome: 'На головну'
         },
         hero: {
-            title: 'RAVEN STRIKE FORCE',
+            title: 'AIRSOFT WROCLAW',
             subtitle: 'ПРОФЕСІЙНИЙ СТРАЙКБОЛ У ВРОЦЛАВІ',
             cta: 'Приєднатися до команди',
             stats: {
@@ -718,7 +718,7 @@ export const translations: Record<Language, Translations> = {
             },
             team: {
                 title: 'Наша команда',
-                subtitle: 'Професійні гравці Raven Strike Force',
+                subtitle: 'Професійні гравці Airsoft Wroclaw',
                 noMembers: 'Інформація про команду недоступна'
             },
             gallery: {
@@ -764,7 +764,7 @@ export const translations: Record<Language, Translations> = {
                 }
             },
             about: {
-                title: 'Про Raven Strike Force',
+                title: 'Про Airsoft Wroclaw',
                 subtitle: 'Наша місія та історія',
                 mission: 'Наша місія',
                 history: 'Історія команди',
@@ -839,7 +839,7 @@ export const translations: Record<Language, Translations> = {
             goHome: 'На главную'
         },
         hero: {
-            title: 'RAVEN STRIKE FORCE',
+            title: 'AIRSOFT WROCLAW',
             subtitle: 'ПРОФЕССИОНАЛЬНЫЙ СТРАЙКБОЛ ВО ВРОЦЛАВЕ',
             cta: 'Присоединиться к команде',
             stats: {
@@ -1115,7 +1115,7 @@ export const translations: Record<Language, Translations> = {
             },
             team: {
                 title: 'Наша команда',
-                subtitle: 'Профессиональные игроки Raven Strike Force',
+                subtitle: 'Профессиональные игроки Airsoft Wroclaw',
                 noMembers: 'Информация о команде недоступна'
             },
             gallery: {
@@ -1161,7 +1161,7 @@ export const translations: Record<Language, Translations> = {
                 }
             },
             about: {
-                title: 'О Raven Strike Force',
+                title: 'О Airsoft Wroclaw',
                 subtitle: 'Наша миссия и история',
                 mission: 'Наша миссия',
                 history: 'История команды',
@@ -1236,7 +1236,7 @@ export const translations: Record<Language, Translations> = {
             goHome: 'Przejdź do strony głównej'
         },
         hero: {
-            title: 'RAVEN STRIKE FORCE',
+            title: 'AIRSOFT WROCLAW',
             subtitle: 'PROFESJONALNY AIRSOFT WE WROCŁAWIU',
             cta: 'Dołącz do zespołu',
             stats: {
@@ -1512,7 +1512,7 @@ export const translations: Record<Language, Translations> = {
             },
             team: {
                 title: 'Nasz zespół',
-                subtitle: 'Profesjonalni gracze Raven Strike Force',
+                subtitle: 'Profesjonalni gracze Airsoft Wroclaw',
                 noMembers: 'Informacje o zespole niedostępne'
             },
             gallery: {
@@ -1558,7 +1558,7 @@ export const translations: Record<Language, Translations> = {
                 }
             },
             about: {
-                title: 'O Raven Strike Force',
+                title: 'O Airsoft Wroclaw',
                 subtitle: 'Nasza misja i historia',
                 mission: 'Nasza misja',
                 history: 'Historia zespołu',

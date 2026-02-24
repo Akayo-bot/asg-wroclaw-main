@@ -1,6 +1,7 @@
 import React from 'react';
 import { Event } from '../../types/Event';
-import { X, Clock, MapPin, Info } from 'lucide-react'; // Removed unused icons
+import { Clock, MapPin, Info } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface EventDetailsModalProps {
   event: Event;
@@ -9,95 +10,90 @@ interface EventDetailsModalProps {
 }
 
 const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ event, isOpen, onClose }) => {
-  if (!isOpen) return null;
-
   return (
-    // Модальное окно на весь экран с темным фоном
-    <div 
-      className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 overflow-y-auto"
-      onClick={onClose} // Закрытие при клике вне контента
-    >
-      <div 
-        className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl transform transition-all duration-300 scale-100"
-        onClick={(e) => e.stopPropagation()} // Предотвращаем закрытие при клике внутри
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent 
+                className="!flex !p-0 !gap-0 flex-col max-w-2xl bg-[#04070A]/90 border-white/10 backdrop-blur-md shadow-[0_0_50px_rgba(70,214,200,0.15)]"
       >
-        
-        {/* Шапка модалки */}
-        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-[#46D6C8]">{event.title}</h2>
-          <button 
-            onClick={onClose} 
-            className="text-gray-400 hover:text-white transition"
-          >
-            <X size={24} />
-          </button>
-        </div>
+        {/* Header */}
+        <DialogHeader className="p-6 border-b border-white/10" data-custom-position>
+                    <DialogTitle className="text-2xl font-bold text-amber-400 font-display">
+                {event.title}
+            </DialogTitle>
+        </DialogHeader>
 
-        {/* Основной контент */}
-        <div className="p-6 space-y-8">
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto flex-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 hover:scrollbar-thumb-white/30 p-6 space-y-8">
           
-          {/* Блок с Таймингами */}
-          <div className="grid grid-cols-3 gap-4 border-b border-gray-700 pb-6">
+          {/* Timings */}
+          <div className="grid grid-cols-3 gap-4 border-b border-white/10 pb-6">
             <div className="flex items-center space-x-2 text-gray-300">
               <Clock size={18} className="text-[#46D6C8]" />
               <div>
-                <p className="text-sm">Сбор</p>
-                <p className="font-semibold text-lg">{event.gathering_time}</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Сбор</p>
+                <p className="font-semibold text-lg text-white">{event.gathering_time}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 text-gray-300">
               <Clock size={18} className="text-[#46D6C8]" />
               <div>
-                <p className="text-sm">Старт</p>
-                <p className="font-semibold text-lg">{event.start_time}</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Старт</p>
+                <p className="font-semibold text-lg text-white">{event.start_time}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 text-gray-300">
               <Clock size={18} className="text-[#46D6C8]" />
               <div>
-                <p className="text-sm">Длительность</p>
-                <p className="font-semibold text-lg">{event.duration}</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Длительность</p>
+                <p className="font-semibold text-lg text-white">{event.duration}</p>
               </div>
             </div>
           </div>
 
-          {/* Информация о Мета / Элементах игры */}
+          {/* Game Meta */}
           <div>
-            <h3 className="text-xl font-semibold mb-3 flex items-center space-x-2 text-white">
+            <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2 text-white">
               <Info size={20} className="text-[#46D6C8]" />
               <span>Об игре и сценарии</span>
             </h3>
-            <p className="text-gray-400 whitespace-pre-wrap">{event.game_meta}</p>
+                        <p className="text-[#C2C2C2] whitespace-pre-wrap leading-relaxed text-sm">
+                {event.game_meta || "Нет описания сценария."}
+            </p>
           </div>
 
-          {/* Правила и Техника */}
+          {/* Rules */}
           <div>
-            <h3 className="text-xl font-semibold mb-3 flex items-center space-x-2 text-white">
+            <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2 text-white">
               <Info size={20} className="text-[#46D6C8]" />
               <span>Правила и техника</span>
             </h3>
-            <p className="text-gray-400 whitespace-pre-wrap">{event.rules_safety}</p>
+                        <p className="text-[#C2C2C2] whitespace-pre-wrap leading-relaxed text-sm">
+                {event.rules_safety || "Стандартные правила."}
+            </p>
           </div>
 
-          {/* Удобства (Amenities) */}
+          {/* Amenities */}
           <div>
-            <h3 className="text-xl font-semibold mb-3 flex items-center space-x-2 text-white">
+            <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2 text-white">
               <MapPin size={20} className="text-[#46D6C8]" />
               <span>Удобства на месте</span>
             </h3>
             <div className="flex flex-wrap gap-2">
-              {event.amenities.map((item, index) => (
-                <span key={index} className="bg-gray-700 text-sm text-gray-300 px-3 py-1 rounded-full">
-                  {item}
-                </span>
-              ))}
+              {event.amenities && event.amenities.length > 0 ? (
+                  event.amenities.map((item, index) => (
+                                    <span key={index} className="bg-white/5 border border-white/10 text-sm text-[#C2C2C2] px-3 py-1 rounded-full">
+                      {item}
+                    </span>
+                  ))
+              ) : (
+                  <span className="text-gray-500 text-sm italic">Нет информации об удобствах</span>
+              )}
             </div>
           </div>
           
         </div>
-
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

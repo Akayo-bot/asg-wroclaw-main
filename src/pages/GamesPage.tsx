@@ -1,199 +1,207 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
 import { useI18n } from '@/contexts/I18nContext';
-import { NeonPopoverList, NeonOption } from '@/components/admin/NeonPopoverList';
+import { SearchBarNeon } from '@/components/admin/SearchBarNeon';
+import { NeonPopoverList } from '@/components/admin/NeonPopoverList';
 import { supabase } from '@/integrations/supabase/client';
-import SearchBar from '@/components/ui/SearchBar';
 import { useToast } from '@/hooks/use-toast';
 import LoadingScreen from '@/components/LoadingScreen';
 import EventCard from '@/components/events/EventCard';
 import { Event as UIEvent, EventStatus } from '@/types/Event';
+import { Tables, Database } from '@/integrations/supabase/types';
 
-interface DBEvent {
-    id: string;
-    title_uk: string;
-    title_ru: string;
-    title_pl: string;
-    title_en: string;
-    description_uk: string;
-    description_ru: string;
-    description_pl: string;
-    description_en: string;
-    location_uk: string;
-    location_ru: string;
-    location_pl: string;
-    location_en: string;
-    rules_uk: string;
-    rules_ru: string;
-    rules_pl: string;
-    rules_en: string;
-    scenario_uk: string;
-    scenario_ru: string;
-    scenario_pl: string;
-    scenario_en: string;
-    event_date: string;
-    price_amount?: number;
-    price_currency: string;
-    max_players?: number;
-    limit_mode: string;
-    min_players?: number;
-    status: string;
-    main_image_url?: string;
-    map_url?: string;
-    registration_deadline?: string;
-    created_at: string;
-    participants_registered?: number; // Assuming this might be a count or join
-}
+type DBEvent = Tables<'events'>;
 
 const GamesPage = () => {
     const { t, language } = useI18n();
     const { toast } = useToast();
-    const [events, setEvents] = useState<UIEvent[]>([]);
+    const [events, setEvents] = useState<DBEvent[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeFilter, setActiveFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
-
-    const filters = [
-        { key: 'all', label: t('games.all', 'All') },
-        { key: 'upcoming', label: t('games.upcoming', 'Upcoming') },
-        { key: 'registration_open', label: t('games.register', 'Registration Open') },
-        { key: 'completed', label: t('games.past', 'Past') },
-    ];
-
-    // Filter events based on search term
-    const filteredEvents = events.filter(event => 
-        event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.location_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const [statusFilter, setStatusFilter] = useState<'all' | 'upcoming' | 'open' | 'full' | 'completed' | 'cancelled'>('all');
 
     useEffect(() => {
         fetchEvents();
-    }, [activeFilter, language]);
+    }, [statusFilter]);
+
+    useEffect(() => {
+        const checkEventStatuses = async () => {
+            if (events.length === 0) return;
+
+            const now = new Date();
+            const eventsToUpdate = events.filter(e => {
+                if (e.status === 'completed' || e.status === 'cancelled') return false;
+                if (e.start_datetime) {
+                    return new Date(e.start_datetime) < now;
+                }
+                return false;
+            });
+
+            if (eventsToUpdate.length > 0) {
+                await Promise.all(eventsToUpdate.map(event =>
+                    supabase
+                        .from('events')
+                        .update({ status: 'completed' })
+                        .eq('id', event.id)
+                ));
+                fetchEvents();
+            }
+        };
+
+        checkEventStatuses();
+    }, [events.length]);
 
     const fetchEvents = async () => {
         try {
-            setLoading(true);
+            let query = supabase.from('events').select('*');
 
-            let query = supabase
-                .from('events')
-                .select('*')
-                .order('event_date', { ascending: true });
-
-            // Apply filters
-            if (activeFilter !== 'all') {
-                if (activeFilter === 'Open') {
+            if (statusFilter !== 'all') {
+                if (statusFilter === 'open') {
                     query = query.in('status', ['upcoming', 'registration_open']);
-                } else if (activeFilter === 'Full') {
+                } else if (statusFilter === 'full') {
                     query = query.eq('status', 'registration_closed');
-                } else if (activeFilter === 'Completed') {
-                    query = query.eq('status', 'completed');
-                } else if (activeFilter === 'Canceled') {
-                    query = query.eq('status', 'cancelled');
+                } else {
+                    query = query.eq('status', statusFilter);
                 }
             }
 
+            query = query.order('start_datetime', { ascending: true });
+
             const { data, error } = await query;
+            if (error) throw error;
 
-            if (error) {
-                console.error('Error fetching events:', error);
-                toast({
-                    title: 'Error',
-                    description: 'Failed to load events',
-                    variant: 'destructive',
-                });
-            } else {
-                // Map DB events to UI Events
-                const mappedEvents: UIEvent[] = (data || []).map((dbEvent: any) => {
-                    const dateObj = new Date(dbEvent.event_date);
-                    
-                    // Helper to get localized string
-                    const getLoc = (keyPrefix: string) => {
-                        const key = `${keyPrefix}_${language}`;
-                        return dbEvent[key] || dbEvent[`${keyPrefix}_uk`] || '';
-                    };
+            const sortedData = (data || []).sort((a, b) => {
+                const isActiveA = ['upcoming', 'registration_open', 'registration_closed'].includes(a.status);
+                const isActiveB = ['upcoming', 'registration_open', 'registration_closed'].includes(b.status);
 
-                    // Calculate gathering time (1 hour before start)
-                    const gatheringTime = new Date(dateObj.getTime() - 60 * 60 * 1000).toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' });
-                    const startTime = dateObj.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' });
+                if (isActiveA && !isActiveB) return -1;
+                if (!isActiveA && isActiveB) return 1;
 
-                    // Map status
-                    let status: EventStatus = 'Open';
-                    if (dbEvent.status === 'cancelled') status = 'Canceled';
-                    if (dbEvent.status === 'completed') status = 'Completed';
-                    if (dbEvent.status === 'registration_closed') status = 'Full';
-                    
-                    // Check participants limit
-                    // Note: We don't have real participants count in this simple query, defaulting to 0 or random for demo if needed, 
-                    // but ideally should be a count from a related table. For now using 0.
-                    const registered = 0; 
+                const dateA = new Date(a.start_datetime || a.event_date).getTime();
+                const dateB = new Date(b.start_datetime || b.event_date).getTime();
 
-                    return {
-                        id: dbEvent.id,
-                        image_url: dbEvent.main_image_url || 'https://images.unsplash.com/photo-1627916527022-7933930b1b13?q=80&w=2940&auto=format&fit=crop',
-                        title: getLoc('title'),
-                        date: dateObj.toLocaleDateString(language),
-                        location_name: getLoc('location'),
-                        location_map_url: dbEvent.map_url || '#',
-                        participant_limit: dbEvent.max_players || 0,
-                        participants_registered: registered,
-                        price: dbEvent.price_amount || 0,
-                        currency: dbEvent.price_currency || 'UAH',
-                        status: status,
-                        gathering_time: gatheringTime,
-                        start_time: startTime,
-                        duration: '4-6 hours', // Placeholder
-                        amenities: ['Parking', 'Rental', 'Tea/Coffee'], // Placeholders
-                        game_meta: getLoc('scenario'),
-                        rules_safety: getLoc('rules')
-                    };
-                });
-                setEvents(mappedEvents);
-            }
+                if (isActiveA && isActiveB) return dateA - dateB;
+                return dateB - dateA;
+            });
+
+            setEvents(sortedData);
         } catch (error) {
             console.error('Error fetching events:', error);
+            toast({
+                title: t('common.error', 'Error'),
+                description: t('events.fetch_error', 'Failed to fetch events'),
+                variant: 'destructive',
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading) {
+    const getTitle = (event: DBEvent) => {
+        const titles = {
+            uk: event.title_uk,
+            ru: event.title_ru,
+            pl: event.title_pl,
+            en: event.title_en || event.title_uk,
+        };
+        return titles[language as keyof typeof titles] || event.title_uk;
+    };
+
+    const getLocation = (event: DBEvent) => {
+        const locations = {
+            uk: event.location_uk,
+            ru: event.location_ru,
+            pl: event.location_pl,
+            en: event.location_en || event.location_uk,
+        };
+        return locations[language as keyof typeof locations] || event.location_uk;
+    };
+
+    const filteredEvents = useMemo(() => {
+        return events.filter(event => {
+            if (!searchTerm) return true;
+            const title = getTitle(event).toLowerCase();
+            const location = getLocation(event).toLowerCase();
+            return title.includes(searchTerm.toLowerCase()) || location.includes(searchTerm.toLowerCase());
+        });
+    }, [events, searchTerm, language]);
+
+    const mapToUIEvent = (dbEvent: DBEvent): UIEvent => {
+        let dateObj = new Date(dbEvent.start_datetime || dbEvent.event_date || new Date());
+        if (isNaN(dateObj.getTime())) dateObj = new Date();
+
+        const getLoc = (keyPrefix: string) => {
+            const key = `${keyPrefix}_${language}`;
+            return (dbEvent as any)[key] || (dbEvent as any)[`${keyPrefix}_uk`] || '';
+        };
+
+        const gatheringTime = new Date(dateObj.getTime() - 60 * 60 * 1000).toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' });
+        const startTime = dateObj.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' });
+
+        let status: EventStatus = 'Open';
+        if (dbEvent.status === 'upcoming') status = 'Announced';
+        if (dbEvent.status === 'cancelled') status = 'Canceled';
+        if (dbEvent.status === 'completed') status = 'Completed';
+        if (dbEvent.status === 'registration_closed') status = 'Full';
+
+        return {
+            id: dbEvent.id,
+            image_url: dbEvent.main_image_url || 'https://images.unsplash.com/photo-1627916527022-7933930b1b13?q=80&w=2940&auto=format&fit=crop',
+            title: getTitle(dbEvent),
+            date: dateObj.toLocaleDateString(language),
+            location_name: getLocation(dbEvent),
+            location_map_url: dbEvent.map_url || '#',
+            participant_limit: dbEvent.max_players || 0,
+            participants_registered: 0,
+            price: dbEvent.price_amount || 0,
+            currency: dbEvent.price_currency || 'PLN',
+            status,
+            gathering_time: gatheringTime,
+            start_time: startTime,
+            duration: dbEvent.duration || '',
+            amenities: (dbEvent as any).amenities || [],
+            game_meta: getLoc('scenario'),
+            rules_safety: getLoc('rules'),
+        };
+    };
+
+    if (loading && events.length === 0) {
         return <LoadingScreen label="SCANNING TARGETS…" size={140} />;
     }
 
     return (
-        <Layout showBreadcrumbs>
+        <Layout>
             <div className="min-h-screen py-12">
                 <div className="container mx-auto px-4 lg:px-8">
-                    {/* Header */}
                     <div className="text-center mb-12">
-                        <h1 className="font-rajdhani text-4xl md:text-5xl font-bold mb-4">
-                            {t('games.title', 'Games')}
+                        <h1 className="font-rajdhani text-4xl md:text-5xl font-bold text-white mb-4">
+                            {t('games.title', 'Игры')}
                         </h1>
-                        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                            {t('games.subtitle', 'Upcoming games and events')}
+                        <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+                            {t('games.subtitle', 'Предстоящие игры и события')}
                         </p>
                     </div>
 
-                    {/* Search and Filters */}
-                    <div className="flex flex-col md:flex-row gap-4 mb-8 justify-between items-center">
-                        <div className="w-full md:w-1/2">
-                             <SearchBar 
-                                value={searchTerm} 
-                                onChange={(e) => setSearchTerm(e.target.value)} 
-                                placeholder={t('games.search_placeholder', 'Search games...')}
+                    <div className="flex flex-col sm:flex-row items-center gap-3 max-w-4xl mx-auto mb-6">
+                        <div className="flex-1 w-full">
+                            <SearchBarNeon
+                                value={searchTerm}
+                                onChange={setSearchTerm}
+                                placeholder={t('games.search_placeholder', 'Поиск событий...')}
+                                className="!mb-0"
                             />
                         </div>
-                        
-                        <div className="w-full md:w-auto">
+                        <div className="shrink-0 self-center">
                             <NeonPopoverList
-                                value={activeFilter}
-                                onChange={(v) => setActiveFilter(v)}
+                                value={statusFilter}
+                                onChange={(v) => setStatusFilter(v as any)}
                                 options={[
-                                    { id: "all", label: t('games.filter_all', 'All Games'), textColor: "text-neutral-300", hoverColor: "teal" },
-                                    { id: "Open", label: "Открыт набор", textColor: "text-emerald-400", hoverColor: "emerald" },
-                                    { id: "Full", label: "Мест нет", textColor: "text-amber-400", hoverColor: "amber" },
-                                    { id: "Completed", label: "Завершено", textColor: "text-slate-400", hoverColor: "teal" },
-                                    { id: "Canceled", label: "Отменено", textColor: "text-rose-400", hoverColor: "rose" },
+                                    { id: "all", label: t('events.all_statuses', 'Все статусы'), textColor: "text-neutral-300", hoverColor: "teal" },
+                                    { id: "upcoming", label: t('events.status.announced', 'Анонс'), textColor: "text-blue-400", hoverColor: "blue" },
+                                    { id: "open", label: t('events.status.open', 'Открыт набор'), textColor: "text-emerald-400", hoverColor: "emerald" },
+                                    { id: "full", label: t('events.status.full', 'Мест нет'), textColor: "text-amber-400", hoverColor: "amber" },
+                                    { id: "completed", label: t('events.status.completed', 'Завершено'), textColor: "text-slate-400", hoverColor: "teal" },
+                                    { id: "cancelled", label: t('events.status.cancelled', 'Отменено'), textColor: "text-rose-400", hoverColor: "rose" },
                                 ]}
                                 color="teal"
                                 minW={180}
@@ -201,21 +209,26 @@ const GamesPage = () => {
                         </div>
                     </div>
 
-                    {/* Games Grid */}
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredEvents.map((event) => (
-                            <EventCard key={event.id} event={event} />
-                        ))}
-                    </div>
+                    <div className="mx-auto max-w-[1400px] py-4 sm:py-6 mt-4 sm:mt-6 relative">
+                        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(70,214,200,.08),transparent_70%)] opacity-50 rounded-2xl" />
 
-                    {/* Empty State */}
-                    {filteredEvents.length === 0 && (
-                        <div className="text-center py-12">
-                            <p className="text-muted-foreground">
-                                {t('games.no_games', 'No games available')}
-                            </p>
-                        </div>
-                    )}
+                        {filteredEvents.length === 0 ? (
+                            <section className="relative rounded-2xl p-6 md:p-7 border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-sm">
+                                <span className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_70%_at_50%_0%,rgba(70,214,200,.12),transparent_60%)]" />
+                                <h3 className="text-center text-slate-200 font-medium">{t('games.no_games', 'Событий не найдено')}</h3>
+                                <p className="text-center text-slate-400 mt-1">{t('games.try_change_filters', 'Попробуйте изменить фильтры...')}</p>
+                            </section>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {filteredEvents.map((dbEvent) => (
+                                    <EventCard
+                                        key={`${dbEvent.id}-${dbEvent.status}`}
+                                        event={mapToUIEvent(dbEvent)}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </Layout>

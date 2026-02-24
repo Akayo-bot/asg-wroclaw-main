@@ -43,7 +43,7 @@ const MinimalNavbar = () => {
                             </div>
                             <div className="hidden sm:block">
                                 <h1 className="font-rajdhani text-xl font-bold text-foreground">
-                                    RAVEN STRIKE
+                                    AIRSOFT WROCLAW
                                 </h1>
                                 <p className="font-inter text-xs text-muted-foreground uppercase tracking-wider">
                                     TACTICAL AIRSOFT

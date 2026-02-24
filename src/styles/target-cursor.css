@@ -7,8 +7,8 @@
   .target-cursor-dot,
   [class^="target-cursor"],
   [class*=" target-cursor"],
-  div[style*="cursor"][style*="fixed"][style*="z-[9999]"],
-  div[style*="fixed"][style*="pointer-events-none"][style*="z-[9999]"] {
+  div[style*="cursor"][style*="fixed"][style*="z-[13050]"],
+  div[style*="fixed"][style*="pointer-events-none"][style*="z-[13050]"] {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;
@@ -224,17 +224,6 @@
     pointer-events: auto !important;
   }
 
-  /* Specific rules for elements with data-radix-collection-item */
-  [data-radix-collection-item] {
-    cursor: none !important;
-    pointer-events: auto !important;
-  }
-
-  [data-radix-collection-item] * {
-    pointer-events: none !important;
-    cursor: none !important;
-  }
-
   /* Tailwind UI components */
   .btn,
   .button,
@@ -367,3 +356,5 @@
         0 0 8px rgba(0, 0, 0, 0.8), 
         0 0 16px rgba(0, 0, 0, 0.8) !important;
 }
+
+/* Link popup uses the same custom cursor layer (above modal) */

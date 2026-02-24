@@ -3,7 +3,7 @@ import React from 'react';
 interface KpiTileSoftProps {
     label: string;
     value: string | number;
-    sub?: string;
+    sub?: React.ReactNode;
     icon: React.ReactNode;
 }
 

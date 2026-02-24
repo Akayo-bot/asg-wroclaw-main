@@ -9,6 +9,62 @@
 @import './styles/target-cursor.css';
 @import './styles/performance.css';
 
+/* DayPicker (react-day-picker) calendar styling - improved hover readability */
+.rdp {
+  --rdp-cell-size: 40px;
+  --rdp-accent-color: #46D6C8;
+  --rdp-background-color: rgba(70, 214, 200, 0.1);
+}
+
+/* Calendar day cells - better hover contrast */
+.rdp-day {
+  color: #ffffff;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+/* Hover state - semi-transparent teal background with teal text (tactical HUD style) */
+.rdp-day:not(.rdp-day_selected):not(.rdp-day_disabled):hover,
+.rdp-day_button:not(.rdp-day_selected):not(.rdp-day_disabled):hover {
+  background-color: rgba(70, 214, 200, 0.1) !important;
+  color: #46D6C8 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Selected day - clear teal background with dark text */
+.rdp-day_selected,
+.rdp-day_button.rdp-day_selected {
+  background-color: #46D6C8 !important;
+  color: #04070A !important;
+  font-weight: 600;
+}
+
+/* Today indicator */
+.rdp-day_today:not(.rdp-day_selected),
+.rdp-day_button.rdp-day_today:not(.rdp-day_selected) {
+  font-weight: 600;
+  color: #46D6C8;
+}
+
+/* Disabled days */
+.rdp-day_disabled,
+.rdp-day_button.rdp-day_disabled {
+  color: rgba(255, 255, 255, 0.3) !important;
+  cursor: not-allowed;
+}
+
+/* Navigation buttons */
+.rdp-nav_button {
+  color: #46D6C8;
+  transition: all 0.2s ease;
+}
+
+.rdp-nav_button:hover {
+  background-color: rgba(70, 214, 200, 0.1);
+  transform: scale(1.1);
+}
+
 /*
  * КРОК 3: БАЗА TAILWIND
  */
@@ -55,6 +111,27 @@ body {
     rgba(0, 0, 0, 0) 70%     /* Fades to transparent */
   );
   background-repeat: no-repeat;
+}
+
+/* CSS Variables for Admin Sidebar Offset */
+body {
+  --admin-sidebar-width: 0px;
+}
+
+body.admin-layout {
+  --admin-sidebar-width: 0px;
+}
+
+@media (min-width: 1024px) {
+  body.admin-layout {
+    --admin-sidebar-width: 300px;
+  }
+}
+
+@media (min-width: 1280px) {
+  body.admin-layout {
+    --admin-sidebar-width: 320px;
+  }
 }
 
 /* DomeGallery scroll lock */
@@ -883,6 +960,17 @@ body.dg-scroll-lock {
     padding-right: 0 !important;
   }
 
+  /* Fix browser autofill/autocomplete background on dark inputs */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #151b19 inset !important;
+    -webkit-text-fill-color: #d1fae5 !important;
+    caret-color: #d1fae5 !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
   /* Cursor Effects */
   .cursor-tactical {
     cursor: crosshair;
@@ -1007,6 +1095,26 @@ body.dg-scroll-lock {
 
   .smoke-effect:hover::after {
     opacity: 1;
+  }
+
+  /* Marquee animation for long text */
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    10% { transform: translateX(0%); } /* Pause at start */
+    100% { transform: translateX(-100%); }
+  }
+  .animate-marquee {
+    display: inline-block;
+    animation: marquee 8s linear infinite;
+  }
+
+  /* Seamless Marquee Scroll (moves to -50% for duplicated content) */
+  @keyframes marquee-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .animate-marquee-scroll {
+    animation: marquee-scroll 10s linear infinite;
   }
 }
 
@@ -1765,16 +1873,35 @@ body.dg-scroll-lock {
     @apply w-9 h-9 rounded-lg grid place-items-center
            text-[#46D6C8]/90 transition flex-shrink-0;
   }
-  .rsf-cal-day:hover{
-    background-color: rgba(70, 214, 200, 0.15);
-    color: rgba(70, 214, 200, 1);
-    text-shadow: 0 0 8px rgba(70, 214, 200, 0.5);
+  /* 1. Generic Hover (Not Sel, Not Dis, Not Today) */
+  .rsf-cal-day:hover:not(.rsf-cal-day--sel):not(.rsf-cal-day--dis):not(.rsf-cal-day--today) {
+    background-color: rgba(70, 214, 200, 0.1) !important;
+    color: #46D6C8 !important;
+    text-shadow: none !important;
+    border: none !important;
+    box-shadow: none !important;
   }
-  .rsf-cal-day--today{ 
-    @apply relative;
+
+  /* 2. Selected Day (Standard) & Hover on Selected */
+  /* Remove body prefix to allow normal inheritance, but keep !important for colors */
+  /* 2. Selected Day (Standard) & Hover on Selected */
+  /* Remove body prefix to allow normal inheritance, but keep !important for colors */
+  .rsf-cal-day--sel,
+  .rsf-cal-day--sel:hover,
+  .rsf-cal-day--sel:focus {
+    background-color: #46D6C8 !important;
+    color: #04070A !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+  }
+
+  /* 3. Today (Base Style) - Restored */
+  .rsf-cal-day--today:not(.rsf-cal-day--sel) {
+    position: relative;
     border: 1px solid rgba(70, 214, 200, 0.4);
     animation: rsf-pulse-today-glow 2s ease-in-out infinite;
   }
+
   @keyframes rsf-pulse-today-glow {
     0%, 100% {
       border-color: rgba(70, 214, 200, 0.4);
@@ -1789,12 +1916,23 @@ body.dg-scroll-lock {
         0 0 16px rgba(70, 214, 200, 0.5);
     }
   }
-  .rsf-cal-day--sel{
-    @apply bg-[#46D6C8]/20 text-[#46D6C8]
-           ring-1 ring-[#46D6C8]/40 shadow-[0_0_16px_rgba(70,214,200,0.2)];
+
+  /* 4. Today (Not Selected) HOVER */
+  .rsf-cal-day--today:not(.rsf-cal-day--sel):hover {
+    background-color: rgba(70, 214, 200, 0.15) !important;
+    color: #46D6C8 !important;
   }
-  .rsf-cal-day--dis{
-    @apply text-[#46D6C8]/30 line-through cursor-not-allowed;
+
+  /* 4. SPECIAL: Today AND Selected */
+  /* Ensure solid background and visible text */
+  .rsf-cal-day--today.rsf-cal-day--sel,
+  .rsf-cal-day--today.rsf-cal-day--sel:hover {
+    background-color: #46D6C8 !important; 
+    color: #04070A !important;
+    border: 1px solid rgba(4, 7, 10, 0.3) !important;
+    box-shadow: 0 0 12px rgba(70, 214, 200, 0.5) !important; 
+    animation: rsf-pulse-today-glow 2s ease-in-out infinite !important;
+    opacity: 1 !important;
   }
 
   .rsf-ghost-btn{
@@ -1942,4 +2080,168 @@ body.dg-scroll-lock {
 
 .contant_box_404 {
   margin-top: -50px;
+}
+
+/* ── Article content typography ── */
+.article-content {
+  color: #D1D5DB;
+  font-size: 1.125rem;
+  line-height: 1.8;
+  word-break: break-word;
+}
+
+.article-content h1,
+.article-content h2,
+.article-content h3,
+.article-content h4,
+.article-content h5,
+.article-content h6 {
+  color: #FFFFFF;
+  font-weight: 700;
+  margin-top: 1.8em;
+  margin-bottom: 0.6em;
+  line-height: 1.3;
+}
+
+.article-content h1 { font-size: 2em; }
+.article-content h2 { font-size: 1.5em; }
+.article-content h3 { font-size: 1.25em; }
+.article-content h4 { font-size: 1.125em; }
+
+.article-content p {
+  margin-bottom: 1.25em;
+}
+
+.article-content a {
+  color: #46D6C8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(70, 214, 200, 0.35);
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.article-content a:hover {
+  color: #5ee8da;
+  text-decoration-color: #46D6C8;
+}
+
+.article-content strong,
+.article-content b {
+  color: #F3F4F6;
+  font-weight: 600;
+}
+
+.article-content em,
+.article-content i {
+  font-style: italic;
+}
+
+.article-content blockquote {
+  border-left: 3px solid #46D6C8;
+  padding: 0.75em 1.25em;
+  margin: 1.5em 0;
+  background: rgba(70, 214, 200, 0.04);
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #9CA3AF;
+  font-style: italic;
+}
+
+.article-content ul,
+.article-content ol {
+  margin: 1.25em 0;
+  padding-left: 1.5em;
+}
+
+.article-content ul { list-style-type: disc; }
+.article-content ol { list-style-type: decimal; }
+
+.article-content li {
+  margin-bottom: 0.5em;
+}
+
+.article-content li::marker {
+  color: #6B7280;
+}
+
+.article-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 1.5em 0;
+}
+
+.article-content figure {
+  margin: 1.5em 0;
+}
+
+.article-content figcaption {
+  text-align: center;
+  font-size: 0.875em;
+  color: #6B7280;
+  margin-top: 0.5em;
+}
+
+.article-content pre {
+  background: #0d1117;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.75rem;
+  padding: 1em 1.25em;
+  overflow-x: auto;
+  margin: 1.5em 0;
+  font-size: 0.875em;
+}
+
+.article-content code {
+  color: #46D6C8;
+  font-size: 0.9em;
+  background: rgba(70, 214, 200, 0.08);
+  padding: 0.15em 0.35em;
+  border-radius: 0.25rem;
+}
+
+.article-content pre code {
+  color: #D1D5DB;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.article-content hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 2.5em 0;
+}
+
+.article-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5em 0;
+}
+
+.article-content th,
+.article-content td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.75em 1em;
+  text-align: left;
+}
+
+.article-content th {
+  background: rgba(255, 255, 255, 0.03);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.article-content mark {
+  background: rgba(70, 214, 200, 0.2);
+  color: #FFFFFF;
+  padding: 0.1em 0.25em;
+  border-radius: 0.2rem;
+}
+
+.article-content > *:first-child {
+  margin-top: 0;
+}
+
+.article-content > *:last-child {
+  margin-bottom: 0;
 }

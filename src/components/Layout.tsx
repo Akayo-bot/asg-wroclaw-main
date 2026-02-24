@@ -99,7 +99,17 @@ export const Layout = ({ children, showBreadcrumbs = false, showCustomCursor = t
                 <div className="container mx-auto px-4 lg:px-8">
                     <div className="text-center">
                         <p className="font-inter text-sm text-muted-foreground">
-                            Made with ❤️ by secd3c
+                            Made with ❤️ by{' '}
+                            <a
+                                href="https://www.instagram.com/secd3c/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-emerald-400 transition-colors duration-200"
+                                aria-label="secd3c on Instagram"
+                                tabIndex={0}
+                            >
+                                secd3c
+                            </a>
                         </p>
                     </div>
                 </div>

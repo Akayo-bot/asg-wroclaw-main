@@ -8,6 +8,7 @@ import TargetCursor from '@/components/TargetCursor';
 import { autoTargetInteractiveElements } from '@/utils/autoTarget';
 import AdminNavbar from '@/components/admin/AdminNavbar';
 import MobileAdminSidebar from '@/components/admin/MobileAdminSidebar';
+import LoadingScreen from '@/components/LoadingScreen';
 
 const AdminLayout = () => {
     const { user, profile, loading, signOut } = useAuth();
@@ -42,11 +43,7 @@ const AdminLayout = () => {
 
     // Show loading state
     if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-            </div>
-        );
+        return <LoadingScreen label="LOADING ADMIN…" size={120} />;
     }
 
     // Redirect unauthenticated users to auth page with return URL
@@ -88,6 +85,14 @@ const AdminLayout = () => {
         update();
         mq.addEventListener?.('change', update);
         return () => mq.removeEventListener?.('change', update);
+    }, []);
+
+    // Set admin layout class for CSS variables
+    useEffect(() => {
+        document.body.classList.add('admin-layout');
+        return () => {
+            document.body.classList.remove('admin-layout');
+        };
     }, []);
 
     return (

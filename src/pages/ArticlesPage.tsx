@@ -1,11 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { useI18n } from '@/contexts/I18nContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, Clock, User, Filter, ArrowRight } from 'lucide-react';
+import { ArrowRight, Eye, User, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -14,19 +10,46 @@ import LoadingScreen from '@/components/LoadingScreen';
 
 type Article = Tables<'articles'>;
 
+type CategoryKey = 'news' | 'tactics' | 'equipment' | 'game_reports' | 'rules';
+
+type AuthorProfile = { display_name: string | null; avatar_url: string | null };
+
+const CATEGORY_STYLES: Record<CategoryKey, { dot: string; glow: string; text: string }> = {
+    news:         { dot: '#EF4444', glow: '0 0 8px rgba(239,68,68,0.6)',   text: '#FCA5A5' },
+    tactics:      { dot: '#A855F7', glow: '0 0 8px rgba(168,85,247,0.6)',  text: '#D8B4FE' },
+    equipment:    { dot: '#0EA5E9', glow: '0 0 8px rgba(14,165,233,0.6)',  text: '#BAE6FD' },
+    game_reports: { dot: '#10B981', glow: '0 0 8px rgba(16,185,129,0.6)',  text: '#A7F3D0' },
+    rules:        { dot: '#F59E0B', glow: '0 0 8px rgba(245,158,11,0.6)', text: '#FDE047' },
+};
+
+const CATEGORY_LABELS: Record<string, Record<CategoryKey, string>> = {
+    uk: { news: 'Новини', tactics: 'Тактика', equipment: 'Спорядження', game_reports: 'Звіти з ігор', rules: 'Правила' },
+    ru: { news: 'Новости', tactics: 'Тактика', equipment: 'Снаряжение', game_reports: 'Отчёты с игр', rules: 'Правила' },
+    pl: { news: 'Aktualności', tactics: 'Taktyka', equipment: 'Wyposażenie', game_reports: 'Raporty z gier', rules: 'Zasady' },
+    en: { news: 'News', tactics: 'Tactics', equipment: 'Equipment', game_reports: 'Game Reports', rules: 'Rules' },
+};
+
 const ArticlesPage = () => {
     const { t, language } = useI18n();
     const { toast } = useToast();
     const [activeFilter, setActiveFilter] = useState('all');
     const [articles, setArticles] = useState<Article[]>([]);
+    const [authors, setAuthors] = useState<Map<string, AuthorProfile>>(new Map());
     const [loading, setLoading] = useState(true);
 
+    const getCategoryLabel = (category: string): string =>
+        CATEGORY_LABELS[language]?.[category as CategoryKey] || category;
+
+    const getCategoryStyle = (category: string) =>
+        CATEGORY_STYLES[category as CategoryKey] || { dot: '#9CA3AF', glow: 'none', text: '#D1D5DB' };
+
     const filters = [
-        { key: 'all', label: t('pages.articles.categories.all', 'All') },
-        { key: 'tactics', label: t('pages.articles.categories.tactics', 'Tactics') },
-        { key: 'equipment', label: t('pages.articles.categories.equipment', 'Equipment') },
-        { key: 'news', label: t('pages.articles.categories.news', 'News') },
-        { key: 'guides', label: t('pages.articles.categories.guides', 'Guides') },
+        { key: 'all', label: t('pages.articles.categories.all', 'Усі') },
+        { key: 'news', label: getCategoryLabel('news') },
+        { key: 'tactics', label: getCategoryLabel('tactics') },
+        { key: 'equipment', label: getCategoryLabel('equipment') },
+        { key: 'game_reports', label: getCategoryLabel('game_reports') },
+        { key: 'rules', label: getCategoryLabel('rules') },
     ];
 
     useEffect(() => {
@@ -35,6 +58,8 @@ const ArticlesPage = () => {
 
     const fetchArticles = async () => {
         try {
+            setLoading(true);
+
             let query = supabase
                 .from('articles')
                 .select('*')
@@ -49,7 +74,19 @@ const ArticlesPage = () => {
             const { data, error } = await query;
             if (error) throw error;
 
-            setArticles(data || []);
+            const fetched = data || [];
+            setArticles(fetched);
+
+            const authorIds = [...new Set(fetched.map(a => a.author_id))];
+            if (authorIds.length > 0) {
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, display_name, avatar_url')
+                    .in('id', authorIds);
+                const map = new Map<string, AuthorProfile>();
+                profiles?.forEach(p => map.set(p.id, p));
+                setAuthors(map);
+            }
         } catch (error) {
             console.error('Error fetching articles:', error);
             toast({
@@ -62,8 +99,8 @@ const ArticlesPage = () => {
         }
     };
 
-    const getTitle = (article: Article) => {
-        const titles = {
+    const getTitle = (article: Article): string => {
+        const titles: Record<string, string | null> = {
             uk: article.title_uk,
             ru: article.title_ru,
             pl: article.title_pl,
@@ -72,8 +109,8 @@ const ArticlesPage = () => {
         return titles[language] || article.title_uk || 'Untitled';
     };
 
-    const getPreview = (article: Article) => {
-        const previews = {
+    const getPreview = (article: Article): string => {
+        const previews: Record<string, string | null> = {
             uk: article.preview_uk,
             ru: article.preview_ru,
             pl: article.preview_pl,
@@ -82,47 +119,18 @@ const ArticlesPage = () => {
         return previews[language] || article.preview_uk || '';
     };
 
-    const getCategoryLabel = (category: string) => {
-        const categoryLabels = {
-            uk: {
-                tactics: 'Тактика',
-                equipment: 'Спорядження',
-                news: 'Новини',
-                guides: 'Гайди'
-            },
-            ru: {
-                tactics: 'Тактика',
-                equipment: 'Снаряжение',
-                news: 'Новости',
-                guides: 'Гайды'
-            },
-            pl: {
-                tactics: 'Taktyka',
-                equipment: 'Wyposażenie',
-                news: 'Aktualności',
-                guides: 'Przewodniki'
-            },
-            en: {
-                tactics: 'Tactics',
-                equipment: 'Equipment',
-                news: 'News',
-                guides: 'Guides'
-            }
-        };
-        return categoryLabels[language]?.[category as keyof typeof categoryLabels.en] || category;
+    const getAuthorName = (authorId: string): string => {
+        const profile = authors.get(authorId);
+        return profile?.display_name || t('common.unknown_author', 'Автор');
     };
 
-    const featuredArticles = articles.slice(0, 2); // First 2 as featured
-    const regularArticles = articles.slice(2);
-
-    const getCategoryColor = (category: string) => {
-        const colors = {
-            tactics: 'bg-blue-500/10 text-blue-500',
-            equipment: 'bg-green-500/10 text-green-500',
-            news: 'bg-red-500/10 text-red-500',
-            guides: 'bg-purple-500/10 text-purple-500'
-        };
-        return colors[category as keyof typeof colors] || 'bg-gray-500/10 text-gray-500';
+    const formatDate = (dateStr: string): string => {
+        const localeMap: Record<string, string> = { uk: 'uk-UA', ru: 'ru-RU', pl: 'pl-PL', en: 'en-US' };
+        return new Date(dateStr).toLocaleDateString(localeMap[language] || 'uk-UA', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+        });
     };
 
     if (loading) {
@@ -130,168 +138,147 @@ const ArticlesPage = () => {
     }
 
     return (
-        <Layout showBreadcrumbs>
-            <div className="min-h-screen py-12">
-                <div className="container mx-auto px-4 lg:px-8">
+        <Layout>
+            <div className="min-h-screen py-12 md:py-16">
+                <div className="container mx-auto px-4 lg:px-8 max-w-6xl">
+
                     {/* Header */}
-                    <div className="text-center mb-12">
-                        <h1 className="font-rajdhani text-4xl md:text-5xl font-bold mb-4">
-                            {t('pages.articles.title', 'Articles')}
+                    <div className="text-center mb-10">
+                        <h1 className="font-rajdhani text-5xl md:text-6xl font-bold text-white mb-4">
+                            {t('pages.articles.title', 'Статті')}
                         </h1>
-                        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                            {t('pages.articles.subtitle', 'Guides, tactics, and news')}
+                        <p className="text-lg text-gray-400 max-w-xl mx-auto">
+                            {t('pages.articles.subtitle', 'Гайди, тактики та новини')}
                         </p>
                     </div>
 
                     {/* Filters */}
-                    <div className="flex flex-wrap gap-2 mb-8 justify-center">
-                        <Filter className="w-5 h-5 text-muted-foreground mr-2" />
-                        {filters.map((filter) => (
-                            <Button
-                                key={filter.key}
-                                variant={activeFilter === filter.key ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setActiveFilter(filter.key)}
-                                className="cursor-target"
-                            >
-                                {filter.label}
-                            </Button>
-                        ))}
+                    <div className="flex flex-wrap gap-2 mb-10 justify-center">
+                        {filters.map((filter) => {
+                            const isActive = activeFilter === filter.key;
+                            const filterStyle = filter.key === 'all' ? null : getCategoryStyle(filter.key);
+                            return (
+                                <button
+                                    key={filter.key}
+                                    onClick={() => setActiveFilter(filter.key)}
+                                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 cursor-target ${
+                                        isActive
+                                            ? 'border-[#46D6C8]/50 text-[#46D6C8] bg-[#46D6C8]/5'
+                                            : 'border-white/10 text-gray-400 bg-white/[0.03] hover:bg-white/[0.06] hover:text-gray-300'
+                                    }`}
+                                    aria-label={filter.label}
+                                    tabIndex={0}
+                                >
+                                    {filterStyle ? (
+                                        <span
+                                            className="w-2 h-2 rounded-full shrink-0"
+                                            style={{ backgroundColor: filterStyle.dot, boxShadow: filterStyle.glow }}
+                                        />
+                                    ) : filter.key === 'all' ? (
+                                        <span
+                                            className="w-2 h-2 rounded-full shrink-0"
+                                            style={{ backgroundColor: '#46D6C8', boxShadow: '0 0 8px rgba(70,214,200,0.5)' }}
+                                        />
+                                    ) : null}
+                                    {filter.label}
+                                </button>
+                            );
+                        })}
                     </div>
 
-                    {/* Featured Articles */}
-                    {featuredArticles.length > 0 && (
-                        <div className="mb-12">
-                            <h2 className="font-rajdhani text-2xl font-bold mb-6 text-primary">
-                                {t('pages.articles.featured', 'Featured Articles')}
-                            </h2>
-                            <div className="grid md:grid-cols-2 gap-6">
-                                {featuredArticles.map((article) => (
-                                    <Card key={article.id} className="glass-panel tactical-lift cursor-target">
-                                        <div className="aspect-video relative overflow-hidden rounded-t-lg">
+                    {/* Articles Grid */}
+                    {articles.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {articles.map((article) => {
+                                const title = getTitle(article);
+                                const preview = getPreview(article);
+                                const catStyle = getCategoryStyle(article.category);
+                                const authorName = getAuthorName(article.author_id);
+
+                                return (
+                                    <article
+                                        key={article.id}
+                                        className="group bg-[#0d1117] border border-white/[0.06] rounded-xl overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:shadow-[0_4px_40px_rgba(0,0,0,0.5)] flex flex-col"
+                                    >
+                                        {/* Cover */}
+                                        <Link
+                                            to={`/article/${article.id}`}
+                                            className="block aspect-video relative overflow-hidden"
+                                            tabIndex={-1}
+                                            aria-hidden="true"
+                                        >
                                             <img
                                                 src={article.main_image_url || '/placeholder-article.jpg'}
-                                                alt={getTitle(article)}
-                                                className="w-full h-full object-cover"
+                                                alt={title}
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                loading="lazy"
                                             />
-                                            <div className="absolute top-4 left-4">
-                                                <Badge className={getCategoryColor(article.category)}>
-                                                    {getCategoryLabel(article.category)}
-                                                </Badge>
+                                            <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117]/60 via-transparent to-transparent" />
+                                            <div className="absolute top-3 left-3">
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-black/[0.85] backdrop-blur-sm border border-white/[0.08]">
+                                                    <span
+                                                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                        style={{ backgroundColor: catStyle.dot, boxShadow: catStyle.glow }}
+                                                    />
+                                                    <span style={{ color: catStyle.text }}>{getCategoryLabel(article.category)}</span>
+                                                </span>
                                             </div>
-                                        </div>
-                                        <CardHeader>
-                                            <CardTitle className="font-rajdhani text-xl">
-                                                <Link
-                                                    to={`/article/${article.id}`}
-                                                    className="hover:text-primary transition-colors"
-                                                >
-                                                    {getTitle(article)}
-                                                </Link>
-                                            </CardTitle>
-                                            <p className="text-muted-foreground text-sm">
-                                                {getPreview(article)}
-                                            </p>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="flex items-center justify-between mb-4">
-                                                <div className="flex items-center gap-2">
-                                                    <Avatar className="w-6 h-6">
-                                                        <AvatarFallback className="text-xs">
-                                                            A
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    <span className="text-sm text-muted-foreground">
-                                                        {t('admin.common.author', 'Author')}
+                                        </Link>
+
+                                        {/* Content */}
+                                        <div className="p-5 flex flex-col flex-1">
+                                            <Link
+                                                to={`/article/${article.id}`}
+                                                tabIndex={0}
+                                                aria-label={title}
+                                            >
+                                                <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2 group-hover:text-[#46D6C8] transition-colors duration-200">
+                                                    {title}
+                                                </h3>
+                                            </Link>
+
+                                            {preview && (
+                                                <p className="text-sm text-gray-400 line-clamp-3 mb-4">{preview}</p>
+                                            )}
+
+                                            <div className="mt-auto">
+                                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mb-4">
+                                                    <span className="inline-flex items-center gap-1.5 text-white font-medium truncate max-w-[140px]">
+                                                        <User size={12} className="text-gray-500 shrink-0" aria-hidden="true" />
+                                                        {authorName}
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1.5 text-[#9CA3AF]">
+                                                        <CalendarDays size={12} className="text-gray-500 shrink-0" aria-hidden="true" />
+                                                        {formatDate(article.created_at)}
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1.5 text-[#9CA3AF] leading-none">
+                                                        <Eye size={12} className="text-gray-500 shrink-0" aria-hidden="true" />
+                                                        {article.views_count || 0}
                                                     </span>
                                                 </div>
-                                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                    <div className="flex items-center gap-1">
-                                                        <Calendar className="w-3 h-3" />
-                                                        {new Date(article.created_at).toLocaleDateString()}
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <Clock className="w-3 h-3" />
-                                                        {article.views_count || 0} {t('admin.common.views', 'views')}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <Link
-                                                to={`/article/${article.id}`}
-                                                className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
-                                            >
-                                                {t('admin.common.readMore', 'Read More')}
-                                                <ArrowRight className="w-4 h-4" />
-                                            </Link>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        </div>
-                    )}
 
-                    {/* Regular Articles */}
-                    {regularArticles.length > 0 && (
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                            {regularArticles.map((article) => (
-                                <Card key={article.id} className="glass-panel tactical-lift cursor-target">
-                                    <div className="aspect-video relative overflow-hidden rounded-t-lg">
-                                        <img
-                                            src={article.main_image_url || '/placeholder-article.jpg'}
-                                            alt={getTitle(article)}
-                                            className="w-full h-full object-cover"
-                                        />
-                                        <div className="absolute top-4 left-4">
-                                            <Badge className={getCategoryColor(article.category)}>
-                                                {getCategoryLabel(article.category)}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                    <CardHeader>
-                                        <CardTitle className="font-rajdhani text-lg">
-                                            <Link
-                                                to={`/article/${article.id}`}
-                                                className="hover:text-primary transition-colors line-clamp-2"
-                                            >
-                                                {getTitle(article)}
-                                            </Link>
-                                        </CardTitle>
-                                        <p className="text-muted-foreground text-sm line-clamp-3">
-                                            {getPreview(article)}
-                                        </p>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <Avatar className="w-6 h-6">
-                                                <AvatarFallback className="text-xs">
-                                                    A
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <span className="text-sm text-muted-foreground">
-                                                {t('admin.common.author', 'Author')}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <div className="flex items-center gap-1">
-                                                <Calendar className="w-3 h-3" />
-                                                {new Date(article.created_at).toLocaleDateString()}
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="w-3 h-3" />
-                                                {article.views_count || 0} {t('admin.common.views', 'views')}
+                                                <Link
+                                                    to={`/article/${article.id}`}
+                                                    className="inline-flex items-center gap-1.5 text-sm text-[#46D6C8] hover:text-[#46D6C8]/80 transition-colors group/link"
+                                                    tabIndex={0}
+                                                    aria-label={`${t('pages.articles.readMore', 'Читати далі')} — ${title}`}
+                                                >
+                                                    {t('pages.articles.readMore', 'Читати далі')}
+                                                    <ArrowRight
+                                                        size={14}
+                                                        className="transition-transform duration-200 group-hover/link:translate-x-1"
+                                                    />
+                                                </Link>
                                             </div>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                                    </article>
+                                );
+                            })}
                         </div>
-                    )}
-
-                    {/* Empty State */}
-                    {articles.length === 0 && (
-                        <div className="text-center py-12">
-                            <p className="text-muted-foreground text-lg">
-                                {t('admin.empty.noArticles', 'No articles available')}
+                    ) : (
+                        <div className="text-center py-16">
+                            <p className="text-gray-500 text-lg">
+                                {t('pages.articles.empty', 'Статей поки немає')}
                             </p>
                         </div>
                     )}

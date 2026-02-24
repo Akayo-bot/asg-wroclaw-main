@@ -1,6 +1,11 @@
-import { useState } from 'react';
-import { Edit, Trash2, Image as ImageIcon, Video, X } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Edit, Image as ImageIcon, Video, X } from 'lucide-react';
 import { useI18n } from '@/contexts/I18nContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import Lottie, { LottieRefCurrentProps } from "lottie-react";
+import downloadAnimation from "@/assets/lottie/downloadbutton.json";
+import { AnimatedDeleteButton } from './AnimatedDeleteButton';
 
 interface GalleryItem {
     id: string;
@@ -34,6 +39,44 @@ interface GalleryCardProps {
 export default function GalleryCard({ item, language, onEdit, onDelete }: GalleryCardProps) {
     const { t } = useI18n();
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const downloadLottieRef = useRef<LottieRefCurrentProps>(null);
+
+    // Lock scroll when lightbox is open
+    useEffect(() => {
+        if (isLightboxOpen) {
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            // Apply styles to prevent scrolling and layout shift
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden';
+            document.body.style.paddingRight = `${scrollbarWidth}px`;
+        }
+        // Note: Cleanup is intentionally handled in onLightboxExitComplete to prevent
+        // content jump during the exit animation.
+        return () => {};
+    }, [isLightboxOpen]);
+    
+    // Safety cleanup on unmount
+    useEffect(() => {
+        return () => {
+             document.documentElement.style.overflow = '';
+             document.body.style.overflow = '';
+             document.body.style.paddingRight = '';
+        };
+    }, []);
+
+    const handleOpenLightbox = () => {
+        setIsLightboxOpen(true);
+    };
+
+    const handleCloseLightbox = useCallback(() => {
+        setIsLightboxOpen(false);
+    }, []);
+
+    const onLightboxExitComplete = useCallback(() => {
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }, []);
 
     const getTitle = (item: GalleryItem) => {
         const titles = {
@@ -55,21 +98,52 @@ export default function GalleryCard({ item, language, onEdit, onDelete }: Galler
         return titles[language] || event.title_uk || 'Untitled';
     };
 
+    const handleDownload = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const response = await fetch(item.file_url);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            // Extract filename from URL or use title
+            const filename = item.file_url.split('/').pop() || `image-${item.id}`;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Download failed:', error);
+            // Fallback for cross-origin issues if fetch fails
+            const link = document.createElement('a');
+            link.href = item.file_url;
+            link.target = '_blank';
+            link.download = item.file_url.split('/').pop() || 'download';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
+    const formattedDate = new Date(item.created_at).toLocaleDateString().replace(/\//g, '.');
+
     return (
         <>
 
-            <div className="relative rounded-xl overflow-hidden bg-black/60 backdrop-blur-sm border border-white/10 transition-all duration-300 group hover:border-[#46D6C8]/50 h-full flex flex-col">
+            <div className="relative rounded-xl overflow-hidden bg-black/30 backdrop-blur-sm border border-white/10 transition-all duration-300 group/card hover:border-[#46D6C8]/30 hover:shadow-[0_0_30px_rgba(70,214,200,0.1)] h-full flex flex-col">
                 {/* 1. ЗОБРАЖЕННЯ (Тут живе ефект) */}
                 <div className="relative h-48 w-full overflow-hidden group/image shrink-0">
                     {item.file_type.startsWith('image') ? (
                         <div 
                             className="w-full h-full cursor-zoom-in"
-                            onClick={() => setIsLightboxOpen(true)}
+                            onClick={handleOpenLightbox}
                         >
-                            <img
+                            <motion.img
                                 src={item.thumbnail_url || item.file_url}
                                 alt={getTitle(item)}
-                                className="object-cover w-full h-full transition-transform duration-300 group-hover/image:scale-[1.03]"
+                                layoutId={`image-${item.id}`}
+                                className="object-cover w-full h-full"
                             />
                         </div>
                     ) : (
@@ -97,64 +171,108 @@ export default function GalleryCard({ item, language, onEdit, onDelete }: Galler
                 </div>
 
                 {/* 2. ТЕКСТ (Він залишається чистим) */}
-                <div className="relative p-3 flex-1 flex flex-col">
-                    <h3 className="text-base font-semibold text-white truncate mb-1 pr-16">
+                <div className="relative p-4 flex-1 flex flex-col">
+                    <h3 className="text-lg font-semibold text-[#46D6C8] truncate mb-1 pr-16">
                         {getTitle(item)}
                     </h3>
 
                     {/* Зв'язок з подією */}
                     {item.event && (
-                        <p className="text-xs text-[#46D6C8] mb-1 truncate pr-16">
+                        <p className="text-base text-amber-400 font-medium mb-1 truncate pr-16">
                             {getEventTitle(item.event)}
                         </p>
                     )}
 
-                    <p className="text-xs text-gray-400 mb-2 mt-auto">
-                        {new Date(item.created_at).toLocaleDateString()}
+                    <p className="text-sm text-[#C2C2C2] mb-2 mt-auto">
+                        {formattedDate}
                     </p>
 
                     {/* 🔥 КНОПКИ ДІЙ (Фіксовані внизу картки) */}
-                    <div className="absolute bottom-3 right-3 flex space-x-2 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-10">
+                    <div className="absolute bottom-3 right-3 flex space-x-2 opacity-0 translate-y-2 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300 z-10">
+                        {/* Кнопка Скачування (Download) - Lottie */}
+                        <div
+                            onClick={handleDownload}
+                            onMouseEnter={() => downloadLottieRef.current?.play()}
+                            onMouseLeave={() => downloadLottieRef.current?.stop()}
+                            className="h-7 w-7 flex items-center justify-center p-0 rounded-md bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/20 hover:shadow-[0_0_10px_rgba(70,214,200,0.35)] transition-all duration-200 cursor-target active:scale-95 group/lottie"
+                            title={t('common.download', 'Download')}
+                        >
+                            <div className="w-5 h-5 flex items-center justify-center">
+                                <Lottie 
+                                    lottieRef={downloadLottieRef}
+                                    animationData={downloadAnimation} 
+                                    loop={false}
+                                    autoplay={false}
+                                    className="w-full h-full scale-150"
+                                />
+                            </div>
+                        </div>
+
                         {/* Кнопка Редагування (Edit) */}
                         <button
                             onClick={(e) => { e.stopPropagation(); onEdit(item); }}
-                            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white hover:text-[#46D6C8] transition-all hover:scale-110 active:scale-95"
+                            className="group/edit h-7 w-7 flex items-center justify-center p-0 rounded-md bg-sky-500/10 border border-sky-400/30 text-sky-300 hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(56,189,248,.35)] transition-all duration-200 cursor-target"
                             title={t('gallery.edit_item', 'Edit')}
                         >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="h-4 w-4 transition-transform duration-200 group-hover/edit:animate-edit-write group-hover/edit:drop-shadow-[0_0_6px_rgba(56,189,248,.8)]" />
                         </button>
 
                         {/* Кнопка Видалення (Delete) */}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
-                            className="p-2 rounded-lg bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 transition-all hover:scale-110 active:scale-95"
-                            title={t('gallery.delete', 'Delete')}
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div onClick={(e) => e.stopPropagation()}>
+                             <AnimatedDeleteButton
+                                onClick={() => onDelete(item.id)}
+                                size="xs"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* LIGHTBOX (Просте модальне вікно) */}
-            {isLightboxOpen && (
-                <div 
-                    className="fixed inset-0 z-[1000] bg-black/90 flex items-center justify-center p-4 animate-in fade-in duration-200"
-                    onClick={() => setIsLightboxOpen(false)}
-                >
-                    <button 
-                        className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors p-2"
-                        onClick={() => setIsLightboxOpen(false)}
-                    >
-                        <X className="w-8 h-8" />
-                    </button>
-                    <img 
-                        src={item.file_url} 
-                        alt={getTitle(item)} 
-                        className="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain"
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                </div>
+            {/* LIGHTBOX (Fixed Fullscreen Overlay via Portal) */}
+            {createPortal(
+                <AnimatePresence onExitComplete={onLightboxExitComplete}>
+                    {isLightboxOpen && (
+                        <motion.div 
+                            key="lightbox-overlay"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+                            onClick={handleCloseLightbox}
+                        >
+                            {/* Image Wrapper */}
+                            <motion.div 
+                                className="relative max-w-[90vw] max-h-[90vh] flex flex-col items-center"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {/* Close Button (Relative to image, offset slightly) */}
+                                <motion.button
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                    transition={{ delay: 0.2 }}
+                                    onClick={handleCloseLightbox}
+                                    className="absolute -top-12 -right-12 text-white/70 hover:text-white transition-colors p-2 flex items-center gap-2 group"
+                                >
+                                    <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">Закрити</span>
+                                    <div className="bg-white/10 p-2 rounded-full group-hover:bg-white/20">
+                                        <X size={24} />
+                                    </div>
+                                </motion.button>
+
+                                <motion.img 
+                                    src={item.file_url} 
+                                    alt={getTitle(item)} 
+                                    layoutId={`image-${item.id}`}
+                                    className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/10"
+                                    transition={{ type: "spring", stiffness: 280, damping: 35, mass: 0.8 }}
+                                />
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
             )}
         </>
     );

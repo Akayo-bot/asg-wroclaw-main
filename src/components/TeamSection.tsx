@@ -25,7 +25,7 @@ const TeamSection = () => {
                                 )}
                             </h2>
                             <p className="font-inter text-lg text-muted-foreground leading-relaxed mb-8">
-                                {t('team.description', 'Raven Strike Force — это команда профессиональных организаторов страйкбольных игр с многолетним опытом. Мы создаем незабываемые тактические сценарии, которые проверят ваши навыки на прочность.')}
+                                {t('team.description', 'Airsoft Wroclaw — это команда профессиональных организаторов страйкбольных игр с многолетним опытом. Мы создаем незабываемые тактические сценарии, которые проверят ваши навыки на прочность.')}
                             </p>
                         </div>
 
@@ -66,7 +66,7 @@ const TeamSection = () => {
                         <div className="relative overflow-hidden rounded-lg">
                             <img
                                 src={teamPhoto}
-                                alt="Команда Raven Strike Force в тактической экипировке"
+                                alt="Команда Airsoft Wroclaw в тактической экипировке"
                                 className="w-full h-full object-cover night-vision-hover transition-all duration-500"
                             />
 
@@ -76,7 +76,7 @@ const TeamSection = () => {
                             {/* Team Badge */}
                             <div className="absolute bottom-6 left-6 glass-panel p-4 rounded-lg">
                                 <div className="font-rajdhani text-lg font-bold text-foreground">
-                                    RAVEN STRIKE FORCE
+                                    AIRSOFT WROCLAW
                                 </div>
                                 <div className="font-inter text-sm text-primary">
                                     EST. 2019 • WROCŁAW

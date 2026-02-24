@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { fadeInUp } from '@/lib/authAnimations';
 import TargetCursor from '@/components/TargetCursor';
 import { autoTargetInteractiveElements } from '@/utils/autoTarget';
+import RadarLoader from '@/components/RadarLoader';
 
 const CreativeAuthPage = () => {
     const { user, loading, signIn, signUp, signInWithGoogle } = useAuth();
@@ -220,10 +221,7 @@ const CreativeAuthPage = () => {
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-foreground/80">Loading mission briefing...</p>
-                </div>
+                <RadarLoader label="LOADING MISSION BRIEFING…" size={100} />
             </div>
         );
     }
@@ -237,10 +235,7 @@ const CreativeAuthPage = () => {
             // Показываем экран загрузки пока происходит редирект
             return (
                 <div className="min-h-screen flex items-center justify-center bg-background">
-                    <div className="text-center">
-                        <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-foreground/80">Redirecting...</p>
-                    </div>
+                    <RadarLoader label="REDIRECTING…" size={100} />
                 </div>
             );
         }

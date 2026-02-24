@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { getGlassToastClassName, getGlassToastVariant } from '@/lib/glass-toast';
+import RadarLoader from '@/components/RadarLoader';
 
 interface ImageUploaderProps {
     label: string;
@@ -11,6 +13,7 @@ interface ImageUploaderProps {
     folder?: string;
     accept?: string;
     fileType?: 'image' | 'video';
+    error?: boolean;
 }
 
 export default function ImageUploader({ 
@@ -22,14 +25,14 @@ export default function ImageUploader({
     folder = 'branding',
     accept,
     fileType = 'image',
-    multiple = false
+    multiple = false,
+    error = false
 }: ImageUploaderProps & { multiple?: boolean; onUploadMany?: (urls: string[]) => void }) {
     const [isUploading, setIsUploading] = useState(false);
     const [preview, setPreview] = useState<string | null>(currentUrl || null);
     const [previews, setPreviews] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
-
     // Синхронизируем preview с currentUrl при изменении (только для одиночного режима)
     useEffect(() => {
         if (!multiple) {
@@ -77,7 +80,8 @@ export default function ImageUploader({
             toast({
                 title: 'Помилка',
                 description: 'Не вибрано жодного коректного файлу',
-                variant: 'destructive',
+                variant: getGlassToastVariant('error'),
+                className: getGlassToastClassName('error'),
             });
             return;
         }
@@ -101,6 +105,8 @@ export default function ImageUploader({
                 toast({
                     title: 'Успіх',
                     description: `Завантажено файлів: ${urls.length}`,
+                    variant: getGlassToastVariant('success'),
+                    className: getGlassToastClassName('success'),
                 });
             } else {
                 // Одиночная загрузка
@@ -111,6 +117,8 @@ export default function ImageUploader({
                 toast({
                     title: 'Успіх',
                     description: fileType === 'image' ? 'Зображення завантажено успішно' : 'Відео завантажено успішно',
+                    variant: getGlassToastVariant('success'),
+                    className: getGlassToastClassName('success'),
                 });
             }
         } catch (error: any) {
@@ -118,7 +126,8 @@ export default function ImageUploader({
             toast({
                 title: 'Помилка',
                 description: error.message || 'Не вдалося завантажити файли',
-                variant: 'destructive',
+                variant: getGlassToastVariant('error'),
+                className: getGlassToastClassName('error'),
             });
         } finally {
             setIsUploading(false);
@@ -129,7 +138,7 @@ export default function ImageUploader({
         fileInputRef.current?.click();
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files && files.length > 0) {
             handleFileSelect(files);
@@ -232,12 +241,16 @@ export default function ImageUploader({
                         type="button"
                         onClick={handleClick}
                         disabled={isUploading}
-                        className={`w-full rounded-lg border-2 border-dashed border-[#46D6C8]/30 bg-black/40 p-6 hover:border-[#46D6C8]/50 hover:bg-black/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${multiple && previews.length > 0 ? 'mt-2' : ''}`}
+                        className={`w-full rounded-lg border-2 border-dashed p-6 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                            error 
+                                ? 'border-red-500/50 bg-red-500/5 hover:border-red-500/70 hover:bg-red-500/10' 
+                                : 'border-[#46D6C8]/30 bg-black/40 hover:border-[#46D6C8]/50 hover:bg-black/60'
+                        } ${multiple && previews.length > 0 ? 'mt-2' : ''}`}
                     >
                         <div className="flex flex-col items-center justify-center gap-2">
                             {isUploading ? (
                                 <>
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#46D6C8]"></div>
+                                    <RadarLoader label="Завантаження..." size={40} />
                                     <span className="text-sm text-gray-400">Завантаження...</span>
                                 </>
                             ) : (
@@ -258,4 +271,3 @@ export default function ImageUploader({
         </div>
     );
 }
-

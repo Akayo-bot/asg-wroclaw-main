@@ -5,9 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { getGlassToastClassName, getGlassToastVariant } from '@/lib/glass-toast';
 
 const RadarLoaderDemo = () => {
     const { showLoading, hideLoading, withLoading } = useLoading();
+    const { toast } = useToast();
     const [customLabel, setCustomLabel] = useState('SCANNING TARGETS…');
     const [customSize, setCustomSize] = useState(140);
     const [inlineLoading, setInlineLoading] = useState(false);
@@ -39,7 +42,13 @@ const RadarLoaderDemo = () => {
                 .then(r => r.json()),
             'FETCHING DATA…'
         );
-        alert('Данные успешно загружены!');
+        toast({
+            variant: getGlassToastVariant('success'),
+            title: 'Успіх',
+            description: 'Дані успішно завантажені!',
+            className: getGlassToastClassName('success'),
+            duration: 4000,
+        });
     };
 
     const simulateMultipleOperations = async () => {
@@ -51,7 +60,13 @@ const RadarLoaderDemo = () => {
             ]),
             'PROCESSING MULTIPLE TASKS…'
         );
-        alert('Все задачи выполнены!');
+        toast({
+            variant: getGlassToastVariant('success'),
+            title: 'Успіх',
+            description: 'Усі задачі виконані!',
+            className: getGlassToastClassName('success'),
+            duration: 4000,
+        });
     };
 
     return (

@@ -7,7 +7,7 @@ const AboutPage = () => {
   const { t } = useI18n();
 
   return (
-    <Layout showBreadcrumbs>
+    <Layout>
       <div className="min-h-screen py-12">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="text-center mb-12">
@@ -27,7 +27,7 @@ const AboutPage = () => {
                   <h2 className="font-rajdhani text-2xl font-bold">{t('pages.about.mission', 'Mission')}</h2>
                 </div>
                 <p className="text-muted-foreground leading-relaxed">
-                  Raven Strike Force - это профессиональная команда страйкболистов, 
+                  Airsoft Wroclaw - это профессиональная команда страйкболистов, 
                   созданная в 2019 году во Вроцлаве. Наша миссия - развитие тактического 
                   страйкбола в Польше, популяризация спорта среди молодежи и создание 
                   сообщества единомышленников.

@@ -2,7 +2,7 @@ import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown, Check } from "lucide-react";
 
-export type NeonOption = { id: string; label: string; textColor?: string; hoverColor?: string };
+export type NeonOption = { id: string; label: React.ReactNode; textLabel?: string; textColor?: string; hoverColor?: string };
 
 export function NeonPopoverList({
     value,
@@ -11,6 +11,8 @@ export function NeonPopoverList({
     minW = 220,
     width = 200,
     color = "teal",
+    disablePortal = false,
+    className,
 }: {
     value: string;
     onChange: (v: string) => void;
@@ -18,9 +20,23 @@ export function NeonPopoverList({
     minW?: number;
     width?: number;
     color?: "teal" | "cyan" | "red" | "violet";
+    disablePortal?: boolean;
+    className?: string;
 }) {
     const [open, setOpen] = React.useState(false);
+    // Use portal by default to avoid clipping, unless specifically disabled for some reason (rare)
+    // Actually, user had issues with jitter with portal, but clipping without.
+    // The "cut off" issue implies clipping. Portal fixes clipping.
+    // Jitter with portal usually happens if trigger moves (sticky/fixed).
+    // Filters in GalleryManager are in normal flow. Jitter might have been scroll lock related.
+    // Let's force portal enabled (disablePortal=false) inside the component logic for now to fix clipping,
+    // ignoring the prop unless we really need it. Or better, respect prop but default to false.
+    // The user passed disablePortal={true} in GalleryManager. I should flip it there or ignore it here.
+    // To be safe and fix the clipping, I will ignore the passed disablePortal prop for a moment or change the default.
+    // The previous edit hardcoded disablePortal={false} in JSX.
+    
     const selected = options.find((o) => o.id === value) ?? options[0];
+    const selectedLabel = selected?.textLabel || (typeof selected?.label === 'string' ? selected?.label : '');
 
     // цвета неона
     const neon = {
@@ -52,33 +68,43 @@ export function NeonPopoverList({
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    className={`w-full lg:w-auto inline-flex items-center justify-between rounded-lg
-                               bg-neutral-950/70 px-3 h-10 text-sm ring-1
+                    className={`group w-full lg:w-auto inline-flex items-center justify-start rounded-lg
+                               bg-black px-3 h-11 text-sm ring-1
                                ring-[#46D6C8]/30 transition-all duration-200
                                hover:bg-neutral-900/80 hover:ring-[#46D6C8]/50 focus:outline-none focus:ring-[#46D6C8]/60
-                               ${neon}`}
-                    style={{ 
-                        minWidth: minW || undefined, 
+                               ${neon} ${className || ''}`}
+                    style={{
+                        minWidth: minW ? `min(${minW}px, 100%)` : undefined,
                         maxWidth: minW === 0 ? '100%' : undefined,
                         width: width && typeof window !== 'undefined' && window.innerWidth >= 1024 ? `${width}px` : undefined
                     }}
                 >
-                    <span className={`truncate flex-1 min-w-0 ${selected?.textColor || "text-neutral-300"}`}>{selected?.label}</span>
-                    <ChevronDown className={`ml-2 h-4 w-4 text-neutral-400 flex-shrink-0`} />
+                    <div className="flex-1 min-w-0 overflow-hidden text-left">
+                        <span className={`${typeof selected?.label === 'string' ? 'truncate block' : ''} ${selected?.textColor || "text-neutral-300"}`} title={selectedLabel as string}>
+                            {selected?.label}
+                        </span>
+                    </div>
+                    <ChevronDown className={`ml-2 h-5 w-5 text-neutral-400 flex-shrink-0`} />
                 </button>
             </PopoverTrigger>
 
             <PopoverContent
                 align="start"
                 side="bottom"
-                className="z-[70] rounded-xl border border-[#46D6C8]/30
+                collisionPadding={16}
+                sideOffset={4}
+                disablePortal={disablePortal}
+                className="z-[10000] rounded-xl border border-[#46D6C8]/30
                            bg-neutral-950/95 backdrop-blur-sm p-2 shadow-[0_0_15px_rgba(70,214,200,0.1)]
-                           w-auto max-w-[calc(100vw-2.5rem)] sm:max-w-[calc(100vw-3.5rem)] lg:max-w-none"
-                style={{ width: width && typeof window !== 'undefined' && window.innerWidth >= 1024 ? `${width}px` : undefined }}
+                           w-[--radix-popover-trigger-width] max-w-[calc(100vw-2.5rem)] sm:max-w-[calc(100vw-3.5rem)] lg:max-w-none"
             >
-                <ul className="max-h-72 overflow-y-auto overflow-x-hidden py-1">
+                <ul
+                    className="max-h-[300px] overflow-y-auto overflow-x-hidden py-1 neon-scrollbar overscroll-contain pointer-events-auto"
+                    onWheel={(e) => e.stopPropagation()}
+                >
                     {options.map((o) => {
                         const active = value === o.id;
+                        const optionLabelText = o.textLabel || (typeof o.label === 'string' ? o.label : '');
                         return (
                             <li key={o.id}>
                                 <button
@@ -87,18 +113,18 @@ export function NeonPopoverList({
                                         onChange(o.id);
                                         setOpen(false);
                                     }}
-                                    className={`flex items-center justify-between rounded-md py-2
+                                    className={`group flex items-center justify-between rounded-md py-2.5
                                               text-left text-sm transition-all duration-150
                                               ${active
-                                            ? "bg-[#46D6C8]/20 ring-1 ring-[#46D6C8]/60 shadow-[0_0_12px_rgba(70,214,200,0.25)] mx-1 px-2.5 w-[calc(100%-8px)]"
-                                            : getHoverClasses(o.hoverColor || "teal", o.id === "all") + " mx-1 px-2.5 w-[calc(100%-8px)]"
+                                            ? "bg-[#46D6C8]/20 ring-1 ring-[#46D6C8]/60 shadow-[0_0_12px_rgba(70,214,200,0.25)] mx-1 px-3 w-[calc(100%-8px)]"
+                                            : getHoverClasses(o.hoverColor || "teal", o.id === "all") + " mx-1 px-3 w-[calc(100%-8px)]"
                                         }`}
                                 >
-                                    <span className={`truncate ${active ? "text-white" : (o.textColor || "text-neutral-300")}`}>
+                                    <span className={`flex-1 min-w-0 overflow-hidden ${active ? "text-white" : (o.textColor || "text-neutral-300")}`} title={optionLabelText as string}>
                                         {o.label}
                                     </span>
                                     {active && (
-                                        <Check className="ml-2 h-4 w-4 text-[#46D6C8]" />
+                                        <Check className="ml-2 h-5 w-5 text-[#46D6C8] flex-shrink-0" />
                                     )}
                                 </button>
                             </li>

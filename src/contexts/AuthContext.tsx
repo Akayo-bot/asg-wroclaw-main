@@ -12,6 +12,9 @@ interface Profile {
     role: 'superadmin' | 'admin' | 'editor' | 'user';
     bio: string | null;
     notifications_enabled: boolean;
+    callsign?: string | null;
+    phone?: string | null;
+    status?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -135,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 
                                 const { data: profileData } = await supabase
                                     .from('profiles')
-                                    .select('id, display_name, role, avatar_url, bio, preferred_language, notifications_enabled, created_at, updated_at')
+                                    .select('*')
                                     .eq('id', session.user.id)
                                     .maybeSingle();
                                 setProfile(profileData ?? null);
@@ -204,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         
                         const { data: profileData } = await supabase
                             .from('profiles')
-                            .select('id, display_name, role, avatar_url, bio, preferred_language, notifications_enabled, created_at, updated_at')
+                            .select('*')
                             .eq('id', session.user.id)
                             .single();
 
@@ -329,7 +332,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             const { data: profileData } = await supabase
                 .from('profiles')
-                .select('id, display_name, role, avatar_url, bio, preferred_language, notifications_enabled, created_at, updated_at')
+                .select('*')
                 .eq('id', user.id)
                 .single();
 

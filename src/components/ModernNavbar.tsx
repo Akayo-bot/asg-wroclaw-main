@@ -292,7 +292,7 @@ const ModernNavbar = () => {
                                         )}
                                         <div>
                                             <h1 className="font-rajdhani text-2xl font-bold text-foreground tracking-wide group-hover:text-primary transition-colors">
-                                                {settings?.site_name || 'RAVEN STRIKE FORCE'}
+                                                {settings?.site_name || 'AIRSOFT WROCLAW'}
                                             </h1>
                                             <p className="text-xs text-muted-foreground font-inter tracking-wider">
                                                 {t('brand.tagline', settings?.tagline_base || 'Airsoft is more than a game').toUpperCase()}

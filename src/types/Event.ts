@@ -1,4 +1,4 @@
-export type EventStatus = 'Open' | 'Full' | 'Completed' | 'Canceled';
+export type EventStatus = 'Announced' | 'Open' | 'Full' | 'Completed' | 'Canceled';
 
 export interface Event {
     id: string;

@@ -85,6 +85,7 @@ const ArticleEditor = () => {
         seo_description_uk: payload.seo.metaDescription || null,
         status: 'published' as const,
         author_id: user.id,
+        created_at: payload.schedule || new Date().toISOString(),
       };
 
       let articleId = id;
@@ -165,6 +166,7 @@ const ArticleEditor = () => {
         seo_description_uk: payload.seo?.metaDescription || null,
         status: 'draft' as const,
         author_id: user.id,
+        created_at: payload.schedule || new Date().toISOString(),
       };
 
       let articleId = id;

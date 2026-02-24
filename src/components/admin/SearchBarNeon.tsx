@@ -6,11 +6,13 @@ export function SearchBarNeon({
     onChange,
     onSubmit,
     placeholder = "Пошук за заголовком або автором…",
+    className = "",
 }: {
     value: string;
     onChange: (v: string) => void;
     onSubmit?: () => void;
     placeholder?: string;
+    className?: string;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -50,7 +52,7 @@ export function SearchBarNeon({
     }, []);
 
     return (
-        <div className="group relative w-full max-w-4xl mx-auto mb-5">
+        <div className={`group relative w-full max-w-4xl mx-auto mb-5 ${className}`}>
             {/* фон/рамка */}
             <div
                 className="absolute inset-0 rounded-2xl
@@ -100,10 +102,14 @@ export function SearchBarNeon({
                     id="articleSearch"
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck="false"
                     placeholder={placeholder}
-                    className="w-full h-12 md:h-14 rounded-l-2xl bg-transparent
-                               pl-14 pr-28 text-slate-200 placeholder:text-slate-400/70
-                               outline-none border-none"
+                    className={`w-full h-12 md:h-14 rounded-l-2xl bg-transparent
+                               pl-[72px] text-slate-200 placeholder:text-slate-400/70
+                               outline-none border-none
+                               ${onSubmit ? 'pr-32' : 'pr-14 rounded-r-2xl'}`}
                 />
 
                 {/* clear */}
@@ -112,9 +118,12 @@ export function SearchBarNeon({
                         type="button"
                         aria-label="Очистити"
                         onClick={() => onChange("")}
-                        className="absolute right-28 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 hover:text-slate-200 transition-colors"
+                        className={`absolute top-1/2 -translate-y-1/2 rounded-full p-2
+                                   text-slate-400 hover:text-white hover:bg-white/10 
+                                   transition-all active:scale-90
+                                   ${onSubmit ? 'right-28' : 'right-3'}`}
                     >
-                        <X className="h-4 w-4" />
+                        <X className="hv-5 w-5" />
                     </button>
                 )}
 
@@ -130,7 +139,7 @@ export function SearchBarNeon({
                                    ${isAnimating ? 'animate-button-press' : ''}`}
                     >
                         Шукати
-                        <kbd 
+                        <kbd
                             ref={enterIconRef}
                             className={`ml-2 hidden md:inline-block text-xs px-1.5 py-0.5 rounded
                                      bg-black/40 ring-1 ring-white/10

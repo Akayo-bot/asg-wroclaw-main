@@ -20,6 +20,7 @@ const GamesPage = lazy(() => import("./pages/GamesPage"));
 const TeamPage = lazy(() => import("./pages/TeamPage"));
 const GalleryPage = lazy(() => import("./pages/GalleryPage"));
 const ArticlesPage = lazy(() => import("./pages/ArticlesPage"));
+const ArticlePage = lazy(() => import("./pages/ArticlePage"));
 const ContactsPage = lazy(() => import("./pages/ContactsPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
@@ -39,7 +40,7 @@ const DebugAuthPage = lazy(() => import("./pages/DebugAuthPage"));
 const RadarLoaderDemo = lazy(() => import("./pages/RadarLoaderDemo"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TestGallery = lazy(() => import("./pages/TestGallery"));
-const EventsList = lazy(() => import("./pages/EventsList"));
+import EventsList from "./pages/EventsList";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
                                             <Route path="/team" element={<TeamPage />} />
                                             <Route path="/gallery" element={<GalleryPage />} />
                                             <Route path="/articles" element={<ArticlesPage />} />
+                                            <Route path="/article/:id" element={<ArticlePage />} />
                                             <Route path="/contacts" element={<ContactsPage />} />
                                             <Route path="/about" element={<AboutPage />} />
                                             <Route

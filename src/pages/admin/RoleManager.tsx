@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { UserCog, RefreshCw, History, Shield, AlertTriangle, Ban, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { UserCog, RefreshCw, History, Shield, AlertTriangle, Ban, CheckCircle, XCircle, Eye, ArrowUpDown, Search, X, Phone, User, AtSign } from 'lucide-react';
 import { getRoleDisplayName, hasAdminAccess } from '@/utils/auth';
 import RoleChangeHistory from '@/components/admin/RoleChangeHistory';
 import RoleChangeHistoryModal from '@/components/admin/RoleChangeHistoryModal';
@@ -17,10 +17,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import UserProfileModal from '@/components/admin/UserProfileModal';
 import { logActivity } from '@/utils/activityLogger';
 
+import { GlassAlert } from '@/components/ui/GlassAlert';
+import { GlassConfirmDialog } from '@/components/ui/GlassConfirmDialog';
+
 interface UserProfile {
     id: string;
     display_name: string | null;
+    real_name?: string | null;
     avatar_url?: string | null;
+    phone?: string | null;
     role: 'superadmin' | 'admin' | 'editor' | 'user';
     status?: string | null;
     created_at: string;
@@ -64,6 +69,9 @@ const RoleManager = () => {
     // Filters
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
     const [roleFilter, setRoleFilter] = useState<'all' | 'superadmin' | 'admin' | 'editor' | 'user'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchField, setSearchField] = useState<'all' | 'nickname' | 'name' | 'phone'>('all');
+    const [sortBy, setSortBy] = useState<'date' | 'name'>('name');
 
     useEffect(() => {
         if (hasAdminAccess(profile?.role)) {
@@ -76,9 +84,9 @@ const RoleManager = () => {
         setLoadingUsers(true);
         try {
             // Строим запрос с фильтрами на сервере
-            let query = supabase
+            let query: any = supabase
                 .from('profiles')
-                .select('id, display_name, avatar_url, role, status, created_at, updated_at');
+                .select('*');
 
             // Всегда исключаем 'hidden'
             query = query.neq('status', 'hidden');
@@ -146,11 +154,11 @@ const RoleManager = () => {
                 userIds.add(change.changed_by);
             });
 
-            const { data: profiles, error: profilesError } = await supabase
+            const { data: profiles, error: profilesError } = await (supabase
                 .from('profiles')
-                .select('id, display_name, avatar_url, status')
+                .select('id, display_name, avatar_url, status, role')
                 .in('id', Array.from(userIds))
-                .neq('status', 'hidden');
+                .neq('status', 'hidden') as any);
 
             if (profilesError) {
                 console.warn('⚠️ Could not load user profiles:', profilesError);
@@ -247,14 +255,23 @@ const RoleManager = () => {
         }
     };
 
-    const handleUnbanUser = async (targetUserId: string) => {
+    const [unbanConfirmId, setUnbanConfirmId] = useState<string | null>(null);
+    const [unbanTargetName, setUnbanTargetName] = useState<string>('');
+
+    const handleUnbanClick = (targetUserId: string) => {
         const targetUser = users.find(u => u.id === targetUserId);
         if (!targetUser) {
             toast({ title: 'Error', description: 'Користувач не знайдений', variant: 'destructive' });
             return;
         }
+        setUnbanTargetName(targetUser.display_name || 'цього користувача');
+        setUnbanConfirmId(targetUserId);
+    };
 
-        if (!window.confirm(`Ви впевнені, що хочете розбанити ${targetUser.display_name || 'цього користувача'}?`)) {
+    const handleUnbanUser = async (targetUserId: string) => {
+        const targetUser = users.find(u => u.id === targetUserId);
+        if (!targetUser) {
+            toast({ title: 'Error', description: 'Користувач не знайдений', variant: 'destructive' });
             return;
         }
 
@@ -294,6 +311,9 @@ const RoleManager = () => {
                 targetUser: targetUser.display_name || targetUserId,
             });
             
+            // Explicitly update profile status in DB to ensure UI reflects change immediately
+            await supabase.from('profiles').update({ status: null } as any).eq('id', targetUserId);
+
             toast({ title: 'Success', description: data.message || 'Користувач розблокований.' });
             fetchUsers();
             fetchRoleChanges();
@@ -340,7 +360,18 @@ const RoleManager = () => {
             });
 
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Не вдалося забанити користувача');
+            if (!response.ok) {
+                 // Try to parse error if possible
+                 try {
+                     throw new Error(data.error || 'Не вдалося забанити користувача');
+                 } catch (e) {
+                      throw new Error('Не вдалося забанити користувача (Invalid JSON response)');
+                 }
+            }
+            
+            // Explicitly update profile status in DB to ensure UI reflects change immediately
+            // Assuming 'suspended' is the correct status value for banned users
+            await supabase.from('profiles').update({ status: 'suspended' } as any).eq('id', targetUserId);
 
             // Логируем бан пользователя
             await logActivity('USER_BAN', {
@@ -352,6 +383,7 @@ const RoleManager = () => {
             fetchUsers();
             fetchRoleChanges();
         } catch (error: any) {
+             console.error('Error banning user:', error);
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
         } finally {
             setLoading(false);
@@ -397,12 +429,31 @@ const RoleManager = () => {
         }
     };
 
-    // Теперь фильтрация делается на сервере, но оставляем filteredUsers для совместимости
-    // (может использоваться для дополнительной клиентской фильтрации если нужно)
+    // Теперь фильтрация делается на сервере, но добавляем клиентский поиск
     const filteredUsers = useMemo(() => {
-        // Поскольку фильтрация уже делается на сервере, просто возвращаем users
-        return users;
-    }, [users]);
+        let res = users;
+        if (searchQuery) {
+            const lower = searchQuery.toLowerCase();
+            res = res.filter(u => {
+                if (searchField === 'nickname') return u.display_name?.toLowerCase().includes(lower);
+                if (searchField === 'name') return u.real_name?.toLowerCase().includes(lower);
+                if (searchField === 'phone') return u.phone?.toLowerCase().includes(lower);
+                return (
+                    u.display_name?.toLowerCase().includes(lower) ||
+                    u.real_name?.toLowerCase().includes(lower) ||
+                    u.phone?.toLowerCase().includes(lower)
+                );
+            });
+        }
+        if (sortBy === 'name') {
+            res = [...res].sort((a, b) => {
+                const nameA = (a.real_name || a.display_name || '').toLowerCase();
+                const nameB = (b.real_name || b.display_name || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+        }
+        return res;
+    }, [users, searchQuery, searchField, sortBy]);
 
     // Available roles based on current user's role
     const availableRoles = useMemo(() => {
@@ -419,13 +470,12 @@ const RoleManager = () => {
 
     if (!hasAdminAccess(profile?.role)) {
         return (
-            <div className={adminCardStyle}>
-                <div className={adminCardContent}>
-                    <div className="text-center text-muted-foreground py-12">
-                        <AlertTriangle className="mx-auto h-12 w-12 mb-4" />
-                        <p>{t('errors.adminAccessRequired', 'Admin or SuperAdmin access required')}</p>
-                    </div>
-                </div>
+            <div className="p-6 max-w-2xl mx-auto mt-10">
+                <GlassAlert 
+                    variant="destructive"
+                    title={t('common.accessDenied', 'Доступ заборонено')}
+                    description={t('errors.adminAccessRequired', 'Для перегляду цієї сторінки потрібні права адміністратора.')}
+                />
             </div>
         );
     }
@@ -460,6 +510,73 @@ const RoleManager = () => {
                                     <RefreshCw className={`h-4 w-4 ${loadingUsers ? 'animate-spin' : ''}`} />
                                 </Button>
                             </header>
+
+                            <div className="mb-6 px-1">
+                                <div className="group relative w-full max-w-4xl mx-auto">
+                                    <div
+                                        className="absolute inset-0 rounded-2xl bg-white/5 dark:bg-black/20 backdrop-blur-xl ring-1 ring-white/10 dark:ring-white/5 shadow-[0_8px_30px_rgba(0,0,0,.25)] transition-all duration-300 group-focus-within:ring-[#46D6C8]/40 group-focus-within:shadow-[0_0_12px_rgba(70,214,200,.4),inset_0_0_12px_rgba(70,214,200,.15)]"
+                                    />
+                                    <div className="relative flex items-center">
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 grid place-items-center size-9 rounded-xl bg-black/35 ring-1 ring-white/10 text-[#46D6C8] shadow-[0_0_12px_rgba(70,214,200,.25)] transition-all duration-300 group-focus-within:scale-110">
+                                            <Search className="size-[18px]" />
+                                        </div>
+
+                                        <input
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            autoComplete="off"
+                                            placeholder={
+                                                searchField === 'nickname' ? 'Поиск по нику...'
+                                                    : searchField === 'name' ? 'Поиск по имени...'
+                                                    : searchField === 'phone' ? 'Поиск по телефону...'
+                                                    : 'Поиск по нику, имени или телефону...'
+                                            }
+                                            aria-label="Поиск пользователя"
+                                            className="w-full h-12 md:h-14 rounded-l-2xl bg-transparent pl-[72px] pr-[180px] text-slate-200 placeholder:text-slate-400/70 outline-none border-none"
+                                        />
+
+                                        {searchQuery && (
+                                            <button
+                                                type="button"
+                                                aria-label="Очистить"
+                                                tabIndex={0}
+                                                onClick={() => setSearchQuery('')}
+                                                className="absolute right-[155px] top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-90"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        )}
+
+                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                                            {([
+                                                { id: 'all' as const, label: 'Все', icon: <Search className="h-3.5 w-3.5" /> },
+                                                { id: 'nickname' as const, label: 'Ник', icon: <AtSign className="h-3.5 w-3.5" /> },
+                                                { id: 'name' as const, label: 'Имя', icon: <User className="h-3.5 w-3.5" /> },
+                                                { id: 'phone' as const, label: 'Тел', icon: <Phone className="h-3.5 w-3.5" /> },
+                                            ]).map((option) => {
+                                                const isActive = searchField === option.id;
+                                                return (
+                                                    <button
+                                                        key={option.id}
+                                                        type="button"
+                                                        tabIndex={0}
+                                                        aria-label={`Искать по: ${option.label}`}
+                                                        onClick={() => setSearchField(option.id)}
+                                                        className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-all duration-150 cursor-target ${
+                                                            isActive
+                                                                ? 'bg-[#46D6C8]/20 text-[#46D6C8] ring-1 ring-[#46D6C8]/50 shadow-[0_0_10px_rgba(70,214,200,0.3)]'
+                                                                : 'text-gray-500 hover:text-gray-300 hover:bg-white/10'
+                                                        }`}
+                                                    >
+                                                        {option.icon}
+                                                        <span className="hidden sm:inline">{option.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Filters */}
                             <div className="my-4 space-y-4">
@@ -507,6 +624,37 @@ const RoleManager = () => {
                                                     }
                                                 >
                                                     {role === 'all' ? 'Всі ролі' : getRoleDisplayName(role)}
+                                                </Button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Sort */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm font-medium text-gray-400 font-sans flex items-center gap-1">
+                                        <ArrowUpDown className="h-3.5 w-3.5" />
+                                        Сортировка:
+                                    </span>
+                                    <div className="flex gap-1 flex-wrap">
+                                        {([
+                                            { id: 'name' as const, label: 'По имени' },
+                                            { id: 'date' as const, label: 'По дате' },
+                                        ]).map((option) => {
+                                            const isActive = sortBy === option.id;
+                                            return (
+                                                <Button
+                                                    key={option.id}
+                                                    variant={isActive ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    onClick={() => setSortBy(option.id)}
+                                                    className={
+                                                        isActive
+                                                            ? "rounded-lg px-3 py-1.5 text-xs font-medium border border-[#46D6C8]/50 bg-[#46D6C8]/20 backdrop-blur-sm text-[#46D6C8] shadow-[0_0_15px_rgba(70,214,200,0.3)] transition-all duration-150 hover:bg-[#46D6C8]/30 hover:shadow-[0_0_20px_rgba(70,214,200,0.5)] h-7 font-sans cursor-target"
+                                                            : "rounded-lg px-3 py-1.5 text-xs font-medium border border-white/10 bg-black/30 backdrop-blur-sm text-gray-400 transition-all hover:bg-white/10 hover:text-white h-7 font-sans cursor-target"
+                                                    }
+                                                >
+                                                    {option.label}
                                                 </Button>
                                             );
                                         })}
@@ -616,7 +764,7 @@ const RoleManager = () => {
 
                                                                     const className = isActiveRole
                                                                         ? `rounded-md px-3 py-1 text-xs font-medium ${activeByRole} h-7`
-                                                                        : `${baseClasses} ${hoverByRole} h-7`;
+                                                                        : `rounded-md px-3 py-1 text-xs font-medium border border-white/10 bg-black/40 backdrop-blur-sm text-gray-500 transition-all duration-150 hover:-translate-y-px ${hoverByRole} h-7`;
 
                                                                     return (
                                                                         <Button
@@ -743,7 +891,7 @@ const RoleManager = () => {
 
                                                                     const className = isActiveRole
                                                                         ? `rounded-md px-3 py-1 text-xs font-medium ${activeByRole} h-7`
-                                                                        : `${baseClasses} ${hoverByRole} h-7`;
+                                                                        : `rounded-md px-3 py-1 text-xs font-medium border border-white/10 bg-black/40 backdrop-blur-sm text-gray-500 transition-all duration-150 hover:-translate-y-px ${hoverByRole} h-7`;
 
                                                                     return (
                                                                         <Button
@@ -778,7 +926,7 @@ const RoleManager = () => {
                                                                 {userProfile.status === 'suspended' ? (
                                                                     // --- КНОПКА "РОЗБАНИТИ" ---
                                                                     <button
-                                                                        onClick={() => handleUnbanUser(userProfile.id)}
+                                                                        onClick={() => handleUnbanClick(userProfile.id)}
                                                                         disabled={loading}
                                                                         className="rounded-lg px-3 py-1.5 text-xs font-medium border border-[#46D6C8]/30 bg-[#46D6C8]/30 backdrop-blur-sm text-[#46D6C8] transition-all duration-150 hover:-translate-y-px hover:bg-[#46D6C8]/40 hover:text-white hover:border-[#46D6C8]/60 hover:shadow-[0_0_12px_rgba(70,214,200,0.4)] disabled:opacity-50 disabled:cursor-not-allowed font-sans cursor-target"
                                                                     >
@@ -820,7 +968,7 @@ const RoleManager = () => {
                             </header>
                             <Button
                                 variant="outline"
-                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#46D6C8]/20 bg-black/30 p-3 backdrop-blur-sm text-gray-300 transition-all duration-200 hover:bg-[#46D6C8]/30 hover:text-[#46D6C8] hover:shadow-[0_0_15px_rgba(70,214,200,0.2)] font-sans cursor-target"
+                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#46D6C8]/20 bg-black/30 p-3 backdrop-blur-sm text-gray-500 transition-all duration-200 hover:bg-[#46D6C8]/30 hover:text-[#46D6C8] hover:shadow-[0_0_15px_rgba(70,214,200,0.2)] font-sans cursor-target"
                                 onClick={() => setShowHistory(true)}
                             >
                                 <History className="h-4 w-4" />
@@ -846,7 +994,7 @@ const RoleManager = () => {
                             <div className="space-y-3 text-sm relative z-10">
                                 <div>
                                     <p className="font-semibold text-orange-300 mb-1 drop-shadow-[0_0_8px_rgba(255,127,59,0.7)] font-sans">SuperAdmin</p>
-                                    <p className="text-gray-400 text-xs font-sans">
+                                    <p className="text-gray-500 text-sm font-sans">
                                         Повний контроль, вкл. "Управління брендом".
                                     </p>
                                 </div>
@@ -855,7 +1003,7 @@ const RoleManager = () => {
                                 </div>
                                 <div>
                                     <p className="font-semibold text-[#00FF00] mb-1 drop-shadow-[0_0_8px_rgba(0,255,0,0.7)] font-sans">Admin</p>
-                                    <p className="text-gray-400 text-xs font-sans">
+                                    <p className="text-gray-500 text-sm font-sans">
                                         Керування іграми, користувачами, статтями.
                                     </p>
                                 </div>
@@ -864,7 +1012,7 @@ const RoleManager = () => {
                                 </div>
                                 <div>
                                     <p className="font-semibold text-[#A020F0] mb-1 drop-shadow-[0_0_8px_rgba(160,32,240,0.7)] font-sans">Editor</p>
-                                    <p className="text-gray-400 text-xs font-sans">
+                                    <p className="text-gray-500 text-sm font-sans">
                                         Завантаження фото/відео (Галерея), керування статтями.
                                     </p>
                                 </div>
@@ -873,7 +1021,7 @@ const RoleManager = () => {
                                 </div>
                                 <div>
                                     <p className="font-semibold text-[#808080] mb-1 font-sans">User</p>
-                                    <p className="text-gray-400 text-xs font-sans">
+                                    <p className="text-gray-500 text-sm font-sans">
                                         Реєстрація на ігри, перегляд контенту.
                                     </p>
                                 </div>
@@ -893,6 +1041,19 @@ const RoleManager = () => {
                     }}
                 />
             )}
+
+            <GlassConfirmDialog
+                open={!!unbanConfirmId}
+                onOpenChange={(open) => { if (!open) { setUnbanConfirmId(null); setUnbanTargetName(''); } }}
+                title="Розбанити користувача"
+                description={`Ви впевнені, що хочете розбанити ${unbanTargetName}?`}
+                confirmLabel="Розбанити"
+                cancelLabel="Скасувати"
+                variant="default"
+                onConfirm={() => {
+                    if (unbanConfirmId) handleUnbanUser(unbanConfirmId);
+                }}
+            />
         </div>
     );
 };

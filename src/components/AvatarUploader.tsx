@@ -1,14 +1,14 @@
 import { useState, useCallback, useRef } from 'react';
+import { GlassConfirmDialog } from '@/components/ui/GlassConfirmDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/contexts/I18nContext';
-import { UploadCloud, Trash2, Check, X, Loader2, AlertCircle, ZoomIn, ImagePlus } from 'lucide-react';
+import { UploadCloud, Trash2, Check, X, Loader2, ZoomIn, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
@@ -80,12 +80,20 @@ export default function AvatarUploader({ currentAvatarUrl, userId, onAvatarChang
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
         setCroppedAreaPixels(croppedAreaPixels);
     }, []);
+
+    const showErrorToast = useCallback((message: string) => {
+        toast({
+            title: t('common.error', 'Ошибка'),
+            description: message,
+            variant: 'destructive',
+        });
+    }, [toast, t]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -97,16 +105,14 @@ export default function AvatarUploader({ currentAvatarUrl, userId, onAvatarChang
     const processFile = (file: File) => {
         // Валидация
         if (!ALLOWED_TYPES.includes(file.type)) {
-            setError(t('profile.avatar.errorInvalidType', 'Поддерживаются только форматы: JPG, PNG, WEBP'));
+            showErrorToast(t('profile.avatar.errorInvalidType', 'Поддерживаются только форматы: JPG, PNG, WEBP'));
             return;
         }
 
         if (file.size > MAX_FILE_SIZE) {
-            setError(t('profile.avatar.errorTooLarge', 'Размер файла не должен превышать 10MB'));
+            showErrorToast(t('profile.avatar.errorTooLarge', 'Размер файла не должен превышать 10MB'));
             return;
         }
-
-        setError(null);
 
         const reader = new FileReader();
         reader.addEventListener('load', () => {
@@ -138,7 +144,6 @@ export default function AvatarUploader({ currentAvatarUrl, userId, onAvatarChang
         if (!imageSrc || !croppedAreaPixels) return;
 
         setIsLoading(true);
-        setError(null);
 
         try {
             const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels);
@@ -190,15 +195,11 @@ export default function AvatarUploader({ currentAvatarUrl, userId, onAvatarChang
             toast({
                 title: '✅ ' + t('profile.avatar.uploadSuccess', 'Аватар обновлён'),
                 description: t('profile.avatar.uploadSuccess', 'Аватар успешно загружен'),
+                variant: 'success',
             });
         } catch (err: any) {
             console.error('Error uploading avatar:', err);
-            setError(err.message || t('profile.avatar.uploadError', 'Не удалось загрузить аватар'));
-            toast({
-                title: t('common.error', 'Ошибка'),
-                description: err.message || t('profile.avatar.uploadError', 'Не удалось загрузить аватар'),
-                variant: 'destructive',
-            });
+            showErrorToast(err.message || t('profile.avatar.uploadError', 'Не удалось загрузить аватар'));
         } finally {
             setIsLoading(false);
         }
@@ -208,7 +209,6 @@ export default function AvatarUploader({ currentAvatarUrl, userId, onAvatarChang
         if (!currentAvatarUrl) return;
 
         setIsLoading(true);
-        setError(null);
 
         try {
             if (currentAvatarUrl.includes('avatars/')) {
@@ -234,15 +234,11 @@ export default function AvatarUploader({ currentAvatarUrl, userId, onAvatarChang
             toast({
                 title: t('common.success', 'Успешно'),
                 description: t('profile.avatar.removeSuccess', 'Аватар удален'),
+                variant: 'success',
             });
         } catch (err: any) {
             console.error('Error removing avatar:', err);
-            setError(err.message || t('profile.avatar.removeError', 'Не удалось удалить аватар'));
-            toast({
-                title: t('common.error', 'Ошибка'),
-                description: err.message || t('profile.avatar.removeError', 'Не удалось удалить аватар'),
-                variant: 'destructive',
-            });
+            showErrorToast(err.message || t('profile.avatar.removeError', 'Не удалось удалить аватар'));
         } finally {
             setIsLoading(false);
         }
@@ -252,7 +248,6 @@ export default function AvatarUploader({ currentAvatarUrl, userId, onAvatarChang
         setImageSrc(null);
         setCrop({ x: 0, y: 0 });
         setZoom(1);
-        setError(null);
     };
 
     if (imageSrc) {
@@ -298,18 +293,11 @@ export default function AvatarUploader({ currentAvatarUrl, userId, onAvatarChang
                         />
                     </div>
 
-                    {error && (
-                        <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                    )}
-
                     <div className="flex gap-2">
                         <Button
                             onClick={handleSave}
                             disabled={isLoading}
-                            className="flex-1 cursor-target"
+                            className="flex-1 cursor-target bg-[rgba(16,185,129,.15)] text-emerald-100 ring-1 ring-emerald-400/30 px-4 py-2.5 font-medium transition-all hover:bg-[rgba(16,185,129,.22)] hover:text-white hover:shadow-[0_0_40px_-10px_rgba(16,185,129,.6)] active:translate-y-[1px]"
                         >
                             {isLoading ? (
                                 <>
@@ -338,92 +326,108 @@ export default function AvatarUploader({ currentAvatarUrl, userId, onAvatarChang
     }
 
     return (
-        <Card className="glass-panel">
-            <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center gap-4">
-                    <div className="relative group">
-                        <Avatar className="w-24 h-24 border-4 border-primary/20">
-                            <AvatarImage src={previewUrl || undefined} alt={displayName || 'Avatar'} />
-                            <AvatarFallback className="text-2xl">
-                                {displayName?.charAt(0)?.toUpperCase() || 'U'}
-                            </AvatarFallback>
-                        </Avatar>
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer group-hover:scale-105 transition-transform"
-                            onClick={() => fileInputRef.current?.click()}>
-                            <span className="text-2xl">🖊</span>
-                        </div>
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1">
-                            {t('profile.avatar.title', 'Загрузить аватар')}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            {t('profile.avatar.description', 'Минимум 256×256px, до 10MB')}
-                        </p>
+        <div className="bg-[#04070A] border border-emerald-500/20 rounded-2xl p-6 relative overflow-hidden">
+            {/* Фоновое свечение */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[200px] h-[50px] bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+            <div className="flex items-start gap-6 relative z-10">
+                <div className="relative group">
+                    <Avatar className="w-24 h-24 border-2 border-emerald-500/30 shadow-[0_0_20px_-6px_rgba(16,185,129,0.3)]">
+                        <AvatarImage src={previewUrl || undefined} alt={displayName || 'Avatar'} />
+                        <AvatarFallback className="text-2xl bg-[#0a1210] text-emerald-400">
+                            {displayName?.charAt(0)?.toUpperCase() || 'U'}
+                        </AvatarFallback>
+                    </Avatar>
+                    {/* Hover overlay */}
+                    <div
+                        className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={t('profile.avatar.change', 'Змінити аватар')}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+                    >
+                        <span className="text-2xl drop-shadow-lg">🖊</span>
                     </div>
                 </div>
-
-                <div
-                    className={cn(
-                        "border border-dashed rounded-xl p-8 text-center transition-all cursor-pointer",
-                        isDragging
-                            ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_30px_-10px_rgba(16,185,129,.5)]"
-                            : "border-emerald-500/30 bg-neutral-900/55 hover:border-emerald-400/45 hover:shadow-[0_0_30px_-10px_rgba(16,185,129,.5)]",
-                        isLoading && "opacity-50 pointer-events-none"
-                    )}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onClick={() => fileInputRef.current?.click()}
-                >
-                    <div className="relative inline-flex">
-                        <UploadCloud className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                        <ImagePlus className="w-6 h-6 absolute -bottom-1 right-0 text-primary" />
-                    </div>
-                    <p className="text-sm font-medium mb-1">
-                        {t('profile.avatar.dropZone', 'Перетащите изображение или нажмите для выбора')}
+                <div className="flex-1 pt-1">
+                    <h3 className="font-semibold text-lg mb-1 text-white">
+                        {t('profile.avatar.title', 'Завантажити аватар')}
+                    </h3>
+                    <p className="text-sm text-gray-400">
+                        {t('profile.avatar.description', 'Мінімум 256×256px, до 10MB')}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                        JPG, PNG, WEBP · {t('profile.avatar.maxSize', 'До 10MB')}
-                    </p>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept={ALLOWED_TYPES.join(',')}
-                        onChange={handleFileSelect}
-                        className="hidden"
-                    />
                 </div>
+            </div>
 
-                {error && (
-                    <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
+            {/* ЗОНА DRAG & DROP */}
+            <div
+                className={cn(
+                    "mt-6 border border-dashed rounded-xl flex flex-col items-center justify-center p-8 group relative z-10 transition-all duration-300 cursor-pointer",
+                    isDragging
+                        ? "border-emerald-500/60 bg-emerald-500/15 shadow-[0_0_30px_-10px_rgba(16,185,129,.5)]"
+                        : "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/60",
+                    isLoading && "opacity-50 pointer-events-none"
                 )}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                aria-label={t('profile.avatar.dropZone', 'Перетягніть зображення або натисніть для вибору')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+            >
+                <UploadCloud className="text-gray-400 group-hover:text-emerald-400 transition-colors mb-2" size={32} />
+                <p className="text-sm font-bold text-gray-300 group-hover:text-white transition-colors">
+                    {t('profile.avatar.dropZone', 'Перетягніть зображення або натисніть для вибору')}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                    JPG, PNG, WEBP · {t('profile.avatar.maxSize', 'До 10MB')}
+                </p>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={ALLOWED_TYPES.join(',')}
+                    onChange={handleFileSelect}
+                    className="hidden"
+                />
+            </div>
 
-                {previewUrl && (
+            {/* КНОПКА ВИДАЛЕННЯ */}
+            {previewUrl && (
+                <>
                     <button
                         type="button"
-                        onClick={handleRemove}
+                        onClick={() => setConfirmDelete(true)}
                         disabled={isLoading}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[rgba(239,68,68,.08)] text-red-300 ring-1 ring-red-400/25 px-4 py-2 text-sm transition-all hover:bg-[rgba(239,68,68,.12)] hover:text-red-200 hover:ring-red-400/40 hover:shadow-[0_0_18px_-6px_rgba(239,68,68,.5)] active:translate-y-[1px] cursor-target"
+                        className="w-full mt-4 py-3 rounded-xl text-red-400/80 font-medium bg-red-500/5 border border-red-500/15 hover:bg-red-500/15 hover:text-red-300 hover:border-red-500/30 transition-all duration-300 flex justify-center items-center gap-2 relative z-10 cursor-target disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={t('profile.avatar.remove', 'Видалити аватар')}
                     >
                         {isLoading ? (
                             <>
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                {t('common.loading', 'Загрузка...')}
+                                {t('common.loading', 'Завантаження...')}
                             </>
                         ) : (
                             <>
-                                <Trash2 className="w-4 h-4" />
-                                {t('profile.avatar.remove', 'Удалить аватар')}
+                                <Trash2 size={18} />
+                                {t('profile.avatar.remove', 'Видалити аватар')}
                             </>
                         )}
                     </button>
-                )}
-            </CardContent>
-        </Card>
+                    <GlassConfirmDialog
+                        open={confirmDelete}
+                        onOpenChange={setConfirmDelete}
+                        title="Видалити аватар?"
+                        description="Ваш аватар буде видалено назавжди. Цю дію неможливо скасувати."
+                        confirmLabel="Видалити"
+                        cancelLabel="Скасувати"
+                        variant="destructive"
+                        onConfirm={handleRemove}
+                    />
+                </>
+            )}
+        </div>
     );
 }

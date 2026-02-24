@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { motion } from "framer-motion";
@@ -39,6 +39,7 @@ const {
     ChevronRight,
     Type,
     BookOpen,
+    Clock,
 } = Lucide;
 
 // shadcn/ui
@@ -52,15 +53,20 @@ import { HoloToggleSwitch } from "@/components/admin/HoloToggleSwitch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { NeonPopoverList, NeonOption } from "@/components/admin/NeonPopoverList";
+import { useToast } from "@/components/ui/use-toast";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { supabase } from "@/integrations/supabase/client";
 import NeonButton from "@/components/NeonButton";
 import { useI18n } from "@/contexts/I18nContext";
 import OptimizedLottie from "@/components/OptimizedLottie";
+import { TimeWheel as EventTimeWheel } from "@/components/ui/time-wheel";
+import ImageUploader from "./ImageUploader";
+import { NeonPopoverList } from "./NeonPopoverList";
+import { getGlassToastClassName, getGlassToastVariant } from "@/lib/glass-toast";
+import RadarLoader from "@/components/RadarLoader";
 import "./AdminNavbarButtons.css";
 
 export type ArticlePayload = {
@@ -81,6 +87,12 @@ export type ArticleEditorModernProps = {
     uploadImage?: (file: File) => Promise<string>;
     uploadVideo?: (file: File) => Promise<string>;
     onSaveDraft?: (data: Partial<ArticlePayload>) => Promise<void> | void;
+    isModal?: boolean;
+};
+
+export type ArticleEditorRef = {
+    submit: () => void;
+    saveDraft: () => void;
 };
 
 function slugifyLocal(input: string) {
@@ -94,19 +106,18 @@ function slugifyLocal(input: string) {
 
 // Admin panel style (новая цветовая палитра - как в RoleManager)
 const adminCardStyle =
-    "relative overflow-hidden rounded-xl pointer-events-auto touch-auto transform-gpu border border-[#46D6C8]/20 bg-[#04070A]/80 backdrop-blur-sm shadow-[0_0_25px_rgba(70,214,200,0.1)] animate-fade-in";
+    "relative overflow-hidden rounded-lg pointer-events-auto touch-auto transform-gpu border border-white/10 bg-[#04070A]/70 backdrop-blur-sm shadow-[0_0_20px_rgba(70,214,200,0.08)]";
 
-const adminCardContent = "relative z-10 p-3 sm:p-4";
+const adminCardContent = "relative z-10 p-4 sm:p-5";
 
 const glass =
-    "backdrop-blur-md bg-[#04070A]/80 border border-white/10 " +
-    "shadow-[0_0_0_1px_rgba(255,255,255,0.05)] hover:bg-white/10 hover:border-[#46D6C8]/20 transition-colors";
+    "backdrop-blur-md bg-white/5 border border-white/10 text-white " +
+    "shadow-[0_0_0_1px_rgba(255,255,255,0.05)] hover:border-[#46D6C8]/30 hover:shadow-[0_0_15px_rgba(70,214,200,0.1)] transition-all";
 
 const glassInput =
-    "cursor-target w-full rounded-xl text-white px-3 py-2 outline-none transition-all duration-300 ease-out placeholder:text-gray-400 " +
-    "bg-black/40 border border-white/10 " +
-    "hover:border-[#46D6C8]/30 hover:bg-black/50 hover:shadow-[0_0_6px_rgba(70,214,200,0.3)] " +
-    "focus:ring-2 focus:ring-[#46D6C8] focus:border-[#46D6C8] focus:bg-black/60 focus:shadow-[0_0_10px_rgba(70,214,200,0.45)] focus:outline-none";
+    "cursor-target w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-gray-600 " +
+    "outline-none transition-all hover:border-[#46D6C8]/30 hover:shadow-[0_0_15px_rgba(70,214,200,0.1)] " +
+    "focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // IconButtonTip - универсальная обёртка для иконок с подсказкой
@@ -191,10 +202,14 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
     onFocus?: () => void;
     onBlur?: (e: React.FocusEvent<HTMLDivElement>) => void;
 }) {
+    const { toast } = useToast();
     const ref = useRef<HTMLDivElement | null>(null);
     const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const savedRange = useRef<Range | null>(null);
     const [activeCommands, setActiveCommands] = useState<Set<string>>(new Set());
+    const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+    const [linkDraftUrl, setLinkDraftUrl] = useState("");
+    const linkInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         if (ref.current && ref.current.innerHTML !== value) ref.current.innerHTML = value || "";
@@ -208,6 +223,17 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
             }
         };
     }, []);
+
+    useEffect(() => {
+        if (!isLinkModalOpen) return;
+        const focusTimer = window.setTimeout(() => {
+            if (!linkInputRef.current) return;
+            linkInputRef.current.focus();
+            const length = linkInputRef.current.value.length;
+            linkInputRef.current.setSelectionRange(length, length);
+        }, 10);
+        return () => window.clearTimeout(focusTimer);
+    }, [isLinkModalOpen]);
 
     // ——— helpers для выделения и каретки
     const editorRef = ref; // просто читается удобнее
@@ -844,6 +870,51 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
         }, 0);
     };
 
+    const normalizeLinkValue = (rawUrl: string) => {
+        const trimmedUrl = rawUrl.trim();
+        if (!trimmedUrl) return "";
+        if (/^(https?:\/\/|mailto:|tel:|ftp:\/\/|\/|#)/i.test(trimmedUrl)) return trimmedUrl;
+        return `https://${trimmedUrl}`;
+    };
+
+    const insertLinkNode = (url: string) => {
+        if (!ref.current) return false;
+
+        restoreSelection();
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return false;
+
+        const range = sel.getRangeAt(0);
+        if (range.collapsed || !inEditor(range.commonAncestorContainer)) return false;
+
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+
+        try {
+            const selectedContent = range.extractContents();
+            if (!(selectedContent.textContent || "").trim()) return false;
+
+            anchor.appendChild(selectedContent);
+            range.insertNode(anchor);
+
+            const after = document.createRange();
+            after.setStartAfter(anchor);
+            after.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(after);
+
+            onChange(ref.current.innerHTML || "");
+            saveSelection();
+            ref.current.focus();
+            setTimeout(updateActiveCommands, 0);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    };
+
     // Вставка ссылки
     const makeLink = () => {
         if (!ref.current) return;
@@ -851,14 +922,64 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
         restoreSelection();
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0 || sel.toString().trim() === '') {
-            alert('Будь ласка, виділіть текст для створення посилання');
+            toast({
+                variant: getGlassToastVariant("error"),
+                title: "Не вдалося створити посилання",
+                description: "Спочатку виділіть текст у редакторі.",
+                className: getGlassToastClassName("error"),
+                duration: 4000,
+            });
             return;
         }
-        
-        const url = prompt("Вставте URL посилання:");
-        if (url && url.trim()) {
-            exec("createLink", url.trim());
+
+        // Важно: фиксируем выделение до открытия prompt, чтобы не потерять range.
+        saveSelection();
+
+        setLinkDraftUrl("");
+        setIsLinkModalOpen(true);
+    };
+
+    const handleCloseLinkModal = () => {
+        setIsLinkModalOpen(false);
+        setLinkDraftUrl("");
+    };
+
+    const handleConfirmLink = () => {
+        const normalizedUrl = normalizeLinkValue(linkDraftUrl);
+        if (!normalizedUrl) {
+            toast({
+                variant: getGlassToastVariant("error"),
+                title: "Невірне посилання",
+                description: "Вкажіть коректний URL для вставки.",
+                className: getGlassToastClassName("error"),
+                duration: 3500,
+            });
+            return;
         }
+
+        const inserted = insertLinkNode(normalizedUrl);
+        if (!inserted) {
+            exec("createLink", normalizedUrl);
+        }
+        setIsLinkModalOpen(false);
+        setLinkDraftUrl("");
+    };
+
+    const handleLinkInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            handleConfirmLink();
+            return;
+        }
+        if (event.key === "Escape") {
+            event.preventDefault();
+            handleCloseLinkModal();
+        }
+    };
+
+    const handleLinkModalBackdropMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (event.target !== event.currentTarget) return;
+        handleCloseLinkModal();
     };
 
     const isActive = (command: string) => {
@@ -1030,7 +1151,13 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
                 <IconButtonTip 
                     label="Додати посилання" 
                     kbd="Ctrl/⌘ + K" 
-                    onClick={makeLink}
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (editorRef.current && document.activeElement !== editorRef.current) {
+                            editorRef.current.focus();
+                        }
+                        makeLink();
+                    }}
                 >
                     <Link2 className="h-4 w-4" />
                 </IconButtonTip>
@@ -1059,7 +1186,14 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
 
                 <IconButtonTip 
                     label="Параграф" 
-                    onClick={() => setBlock("P")}
+                    isActive={isActive("block-P")}
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (editorRef.current && document.activeElement !== editorRef.current) {
+                            editorRef.current.focus();
+                        }
+                        setTimeout(() => setBlock("P"), 0);
+                    }}
                 >
                     <span className="text-[12px] font-semibold">P</span>
                 </IconButtonTip>
@@ -1128,6 +1262,68 @@ function RichTextEditor({ value, onChange, onFocus, onBlur }: {
                 }}
                 className={`${glassInput} min-h-[240px] rounded-xl p-3 focus:outline-none focus:glow-focus prose prose-invert max-w-none rich-text-editor`}
             />
+
+            {isLinkModalOpen && (
+                <div
+                    data-link-modal="true"
+                    className="fixed inset-0 z-[13040] flex items-center justify-center bg-black/30 p-4 backdrop-blur-[4px]"
+                    onMouseDown={handleLinkModalBackdropMouseDown}
+                >
+                    <div
+                        data-link-modal-panel="true"
+                        className="relative w-full max-w-md rounded-2xl border border-white/20 bg-white/[0.08] p-5 shadow-[0_0_40px_rgba(70,214,200,.14)] backdrop-blur-2xl"
+                        onMouseDown={(event) => event.stopPropagation()}
+                    >
+                        <div className="mb-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Link2 className="h-4 w-4 text-[#46D6C8]" />
+                                <h4 className="text-sm font-semibold text-white">Додати посилання</h4>
+                            </div>
+                            <button
+                                type="button"
+                                aria-label="Закрити"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-gray-200 transition-colors hover:border-[#46D6C8]/40 hover:text-[#46D6C8]"
+                                onClick={handleCloseLinkModal}
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <Label htmlFor="article-link-input" className="mb-2 block text-xs uppercase tracking-wide text-[#46D6C8]/80">
+                            URL посилання
+                        </Label>
+                        <Input
+                            id="article-link-input"
+                            ref={linkInputRef}
+                            value={linkDraftUrl}
+                            onChange={(event) => setLinkDraftUrl(event.target.value)}
+                            onKeyDown={handleLinkInputKeyDown}
+                            placeholder="https://example.com"
+                            className="h-10 border-white/20 bg-white/[0.08] text-white placeholder:text-gray-400 !cursor-text focus:border-[#46D6C8]/50 focus:ring-[#46D6C8]/30"
+                        />
+                        <p className="mt-2 text-xs text-gray-400">
+                            Виділений текст стане активним посиланням.
+                        </p>
+
+                        <div className="mt-5 flex items-center justify-end gap-2">
+                            <Button
+                                type="button"
+                                onClick={handleCloseLinkModal}
+                                className="h-10 rounded-xl border border-white/15 bg-white/5 px-4 text-white hover:bg-white/10"
+                            >
+                                Скасувати
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={handleConfirmLink}
+                                className="h-10 rounded-xl border border-[#46D6C8]/40 bg-[#46D6C8]/15 px-4 text-[#46D6C8] hover:bg-[#46D6C8]/25"
+                            >
+                                Вставити
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -1360,32 +1556,53 @@ function TimeWheel({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-export default function ArticleEditorModern({
-    initial,
-    onSubmit,
-    uploadImage,
-    uploadVideo,
-    onSaveDraft,
-}: ArticleEditorModernProps) {
-    const navigate = useNavigate();
+const ArticleEditorModern = forwardRef<ArticleEditorRef, ArticleEditorModernProps>(({ initial, onSubmit, uploadImage, uploadVideo, onSaveDraft, isModal = false }, ref) => {
+    // Only use navigate when NOT in modal mode (modal doesn't need navigation)
+    const navigate = isModal ? null : useNavigate();
     const { language } = useI18n();
+    const { toast } = useToast();
     // --- state
     const [title, setTitle] = useState(initial?.title ?? "");
     const [preview, setPreview] = useState(initial?.preview ?? "");
     const [body, setBody] = useState(initial?.body ?? "");
     // Category types
     type CategoryKey = "news" | "tactics" | "equipment" | "game_reports" | "rules";
-    const CATEGORY_STYLES = {
-        news: { fg: "text-[#46D6C8]", bg: "bg-[#46D6C8]/20", ring: "ring-[#46D6C8]/40", dot: "bg-[#46D6C8]" },
-        tactics: { fg: "text-sky-300", bg: "bg-sky-500/15", ring: "ring-sky-400/30", dot: "bg-sky-400" },
-        equipment: { fg: "text-violet-300", bg: "bg-violet-500/15", ring: "ring-violet-400/30", dot: "bg-violet-400" },
-        game_reports: { fg: "text-rose-300", bg: "bg-rose-500/15", ring: "ring-rose-400/30", dot: "bg-rose-400" },
-        rules: { fg: "text-amber-300", bg: "bg-amber-500/15", ring: "ring-amber-400/30", dot: "bg-amber-400" },
-    } as const;
-
-    const catCx = (cat: CategoryKey) => {
-        const s = CATEGORY_STYLES[cat] ?? CATEGORY_STYLES.news;
-        return { ...s, pill: `${s.bg} ${s.fg} ring-1 ${s.ring}` };
+    const CATEGORY_STYLES: Record<CategoryKey, {
+        text: string;
+        activeBg: string;
+        activeRing: string;
+        hoverBg: string;
+    }> = {
+        tactics: {
+            text: "text-violet-400",
+            activeBg: "bg-violet-500/15",
+            activeRing: "ring-violet-400/40",
+            hoverBg: "hover:bg-violet-500/10",
+        },
+        equipment: {
+            text: "text-sky-400",
+            activeBg: "bg-sky-500/15",
+            activeRing: "ring-sky-400/40",
+            hoverBg: "hover:bg-sky-500/10",
+        },
+        news: {
+            text: "text-rose-400",
+            activeBg: "bg-rose-500/15",
+            activeRing: "ring-rose-400/40",
+            hoverBg: "hover:bg-rose-500/10",
+        },
+        game_reports: {
+            text: "text-emerald-400",
+            activeBg: "bg-emerald-500/15",
+            activeRing: "ring-emerald-400/40",
+            hoverBg: "hover:bg-emerald-500/10",
+        },
+        rules: {
+            text: "text-amber-400",
+            activeBg: "bg-amber-500/15",
+            activeRing: "ring-amber-400/40",
+            hoverBg: "hover:bg-amber-500/10",
+        },
     };
 
     const categoryLabels: Record<CategoryKey, string> = {
@@ -1411,8 +1628,8 @@ export default function ArticleEditorModern({
     const [isInputFocused, setIsInputFocused] = useState(false);
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
-    // Блокировка прокрутки страницы когда открыт календарь
-    useLockBodyScroll(isPopoverOpen);
+    // Блокировка прокрутки страницы когда открыт календарь (отключаем в модалке, так как диалог сам блокирует)
+    useLockBodyScroll(isModal ? false : isPopoverOpen);
 
     // Определение формата времени на основе языка
     const isEnglish = /^en(-|$)/i.test(language || "");
@@ -1422,6 +1639,15 @@ export default function ArticleEditorModern({
     const pad = (n: number) => String(n).padStart(2, "0");
     const toISO = (y: number, m: number, d: number, hh: number, mm: number) =>
         new Date(Date.UTC(y, m - 1, d, hh, mm)).toISOString();
+
+    const getInputClass = (hasError: boolean) => `
+        w-full px-3 py-2 rounded-lg bg-white/5 border text-white placeholder:text-gray-600
+        ${hasError ? 'border-red-500/50 shadow-[0_0_10px_rgba(220,38,38,0.2)]' : 'border-white/10'}
+        text-sm sm:text-base
+        focus:outline-none focus:border-[#46D6C8]/50 focus:ring-1 focus:ring-[#46D6C8]/50
+        hover:border-[#46D6C8]/30 hover:shadow-[0_0_15px_rgba(70,214,200,0.1)]
+        transition-all
+    `;
 
     // ── Хелперы для динамических подсказок ──────────────────────────────────────
     type SegKey = "DD" | "MM" | "YYYY" | "HH" | "mm" | "AMPM";
@@ -1844,10 +2070,7 @@ export default function ArticleEditorModern({
 
     // Обработчик изменения input для умного форматирования
     const handleScheduleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!scheduleEnabled) {
-            e.preventDefault();
-            return;
-        }
+        if (!scheduleEnabled) setScheduleEnabled(true);
 
         const input = e.target.value;
         const cursorPos = e.target.selectionStart || 0;
@@ -1886,10 +2109,7 @@ export default function ArticleEditorModern({
 
     // Обработчик нажатия клавиш
     const handleScheduleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (!scheduleEnabled) {
-            e.preventDefault();
-            return;
-        }
+        if (!scheduleEnabled) setScheduleEnabled(true);
 
         const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab', 'Enter', 'Home', 'End'];
         if (allowedKeys.includes(e.key)) return;
@@ -1916,9 +2136,17 @@ export default function ArticleEditorModern({
 
     // Обработчик blur для валидации
     const handleScheduleBlur = () => {
-        if (!scheduleEnabled) return;
         const error = validateScheduleText(scheduleText);
         setScheduleInputError(error || "");
+        if (isModal && error) {
+            toast({
+                variant: getGlassToastVariant("error"),
+                title: "Невірна дата публікації",
+                description: error,
+                className: getGlassToastClassName("error"),
+                duration: 4500,
+            });
+        }
     };
 
     // Проверка для показа placeholder AM/PM (удалена - больше не используется, т.к. используется оверлей)
@@ -1999,18 +2227,21 @@ export default function ArticleEditorModern({
         metaStatus === "optimal" ? "text-[#46D6C8]" : metaStatus === "short" ? "text-amber-400" : "text-rose-400";
 
     const normalizeSlug = () => {
-        console.log("Нормалізація. Заголовок:", title);
         if (!title || !title.trim()) {
-            alert("Спочатку введіть заголовок статті.");
+            toast({
+                variant: getGlassToastVariant("error"),
+                title: "Неможливо нормалізувати slug",
+                description: "Спочатку введіть заголовок статті.",
+                className: getGlassToastClassName("error"),
+                duration: 4000,
+            });
             return;
         }
         const newSlug = slugify(title, {
             lower: true,
-            // strict: true, // не використовуємо — щоб не зрізати основу
             remove: /[*+~\.()'"!:@#$?%^&;=]/g,
             locale: 'uk',
         });
-        console.log("Новий слаг:", newSlug);
         setSlug(newSlug);
     };
 
@@ -2018,7 +2249,13 @@ export default function ArticleEditorModern({
         // Використовуємо короткий опис (Превʼю)
         const shortDescription = preview?.trim() || "";
         if (!shortDescription) {
-            alert("Спочатку заповніть поле 'Превʼю / Короткий опис'.");
+            toast({
+                variant: getGlassToastVariant("error"),
+                title: "Неможливо згенерувати SEO-опис",
+                description: "Спочатку заповніть поле 'Превʼю / Короткий опис'.",
+                className: getGlassToastClassName("error"),
+                duration: 4000,
+            });
             return;
         }
         let newDesc = shortDescription.trim();
@@ -2026,151 +2263,6 @@ export default function ArticleEditorModern({
             newDesc = newDesc.substring(0, 157) + "...";
         }
         setMeta(newDesc);
-    };
-
-    const defaultImageUploader = async (file: File): Promise<string> => {
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${crypto.randomUUID()}-${Date.now()}.${fileExt}`;
-        const filePath = `articles/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage.from("media").upload(filePath, file, {
-            contentType: file.type,
-            upsert: false,
-        });
-
-        if (uploadError) throw uploadError;
-
-        const {
-            data: { publicUrl },
-        } = supabase.storage.from("media").getPublicUrl(filePath);
-        // Лог отриманого публічного URL
-        console.log('ОТРИМАНИЙ ПУБЛІЧНИЙ URL:', publicUrl);
-
-        return publicUrl;
-    };
-
-    const defaultVideoUploader = async (file: File): Promise<string> => {
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${crypto.randomUUID()}-${Date.now()}.${fileExt}`;
-        const filePath = `articles/videos/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage.from("media").upload(filePath, file, {
-            contentType: file.type,
-            upsert: false,
-        });
-
-        if (uploadError) throw uploadError;
-
-        const {
-            data: { publicUrl },
-        } = supabase.storage.from("media").getPublicUrl(filePath);
-
-        return publicUrl;
-    };
-
-    const doUploadImage = uploadImage ?? defaultImageUploader;
-    const doUploadVideo = uploadVideo ?? defaultVideoUploader;
-
-    const handleMainImagePick = async (file?: File) => {
-        if (!file) return;
-        setIsUploading(true);
-        try {
-            const url = await doUploadImage(file);
-            setMainImageUrl(url);
-        } catch (error) {
-            console.error("Error uploading image:", error);
-            alert("Failed to upload image");
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
-    // Обработчик выбора файла для главного изображения (очистка ошибок + загрузка)
-    const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        // Очистим ошибку валидации для изображения
-        setFormErrors((prev) => {
-            const next = { ...prev };
-            delete next.image;
-            return next;
-        });
-        // Сбросим текущий URL (на время загрузки покажем лоадер)
-        setMainImageUrl(undefined);
-        await handleMainImagePick(file);
-    };
-
-    const handleGalleryPick = async (files?: FileList | null) => {
-        if (!files?.length) return;
-        setIsUploading(true);
-        try {
-            const urls: string[] = [];
-            for (const f of Array.from(files)) urls.push(await doUploadImage(f));
-            setGallery((g) => [...g, ...urls]);
-        } catch (error) {
-            console.error("Error uploading gallery images:", error);
-            alert("Failed to upload gallery images");
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
-    // Удаление файла из хранилища по публичному URL (bucket 'media')
-    const removeMediaByPublicUrl = async (publicUrl: string) => {
-        try {
-            // Ожидается вид: https://<project>.supabase.co/storage/v1/object/public/media/<path>
-            const marker = "/storage/v1/object/public/media/";
-            const idx = publicUrl.indexOf(marker);
-            if (idx === -1) return;
-            const path = publicUrl.substring(idx + marker.length);
-            if (!path) return;
-            await supabase.storage.from('media').remove([path]);
-        } catch (e) {
-            console.warn('Failed to remove media from storage:', e);
-        }
-    };
-
-    const removeGalleryItem = async (idx: number) => {
-        setGallery((g) => {
-            const url = g[idx];
-            if (url) {
-                // не await, чтобы UI не блокировался
-                removeMediaByPublicUrl(url);
-            }
-            return g.filter((_, i) => i !== idx);
-        });
-    };
-
-    const handleVideoFilePick = async (file?: File) => {
-        if (!file) return;
-        setIsUploading(true);
-        try {
-            const url = await doUploadVideo(file);
-            setVideoFileUrl(url);
-        } catch (error) {
-            console.error("Error uploading video:", error);
-            alert("Failed to upload video");
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = () => {
-        setIsDragging(false);
-    };
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith("image/")) {
-            handleMainImagePick(file);
-        }
     };
 
     const payload: ArticlePayload = useMemo(
@@ -2197,7 +2289,7 @@ export default function ArticleEditorModern({
 
     const saveDraft = async () => await onSaveDraft?.(payload);
 
-    const validateForm = (): boolean => {
+    const validateForm = (): { isValid: boolean; missingFields: string[] } => {
         const errs: Record<string, string> = {};
         if (!title || title.trim() === "") errs.title = "Заголовок не може бути порожнім";
         if (!preview || preview.trim() === "") errs.shortDescription = "Короткий опис обов'язковий";
@@ -2215,15 +2307,31 @@ export default function ArticleEditorModern({
             if (!plain || plain.length < 20) errs.content = "Основний текст занадто короткий";
         }
         setFormErrors(errs);
-        return Object.keys(errs).length === 0;
+        const fieldLabelMap: Record<string, string> = {
+            title: "Заголовок статті",
+            shortDescription: "Превʼю / Короткий опис",
+            content: "Основний текст",
+            image: "Головне зображення",
+            category: "Категорія",
+            slug: "Slug",
+        };
+
+        const missingFields = Object.keys(errs).map((key) => fieldLabelMap[key] ?? key);
+        return { isValid: missingFields.length === 0, missingFields };
     };
 
     const handlePublish = async (e?: React.MouseEvent) => {
         e?.preventDefault();
-        const ok = validateForm();
-        if (!ok) {
+        const { isValid, missingFields } = validateForm();
+        if (!isValid) {
             console.warn("Форма не пройшла валідацію. Помилки:", formErrors);
-            alert("Будь ласка, виправте помилки у формі");
+            toast({
+                variant: getGlassToastVariant("error"),
+                title: "Помилка валідації",
+                description: `Будь ласка, перевірте поля: ${missingFields.join(", ")}`,
+                className: getGlassToastClassName("error"),
+                duration: 5000,
+            });
             return;
         }
         setFormErrors({});
@@ -2254,12 +2362,31 @@ export default function ArticleEditorModern({
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.message || 'Failed to save article');
             }
-            alert('Стаття успішно збережена!');
+            toast({
+                variant: getGlassToastVariant("success"),
+                title: "Успіх",
+                description: "Стаття успішно збережена!",
+                className: getGlassToastClassName("success"),
+                duration: 4500,
+            });
         } catch (err: any) {
             console.error('Помилка сервера:', err);
-            alert(err.message || 'Failed to save article');
+            toast({
+                variant: getGlassToastVariant("error"),
+                title: "Помилка сервера",
+                description: err?.message || "Failed to save article",
+                className: getGlassToastClassName("error"),
+                duration: 5000,
+            });
         }
     };
+
+
+
+    useImperativeHandle(ref, () => ({
+        submit: () => handlePublish(),
+        saveDraft: () => saveDraft()
+    }));
 
     // запрет прошедших публикаций: минимум через 5 минут
     const scheduleError = useMemo(() => {
@@ -2274,423 +2401,87 @@ export default function ArticleEditorModern({
     }, [scheduleEnabled, schedule]);
 
     const publishDisabled = !!scheduleError && scheduleEnabled;
+    const getSectionClassName = (
+        section: "title" | "preview" | "body" | "mainImage" | "gallery" | "video" | "category" | "seo"
+    ) => {
+        if (!isModal) return adminCardStyle;
+        const withoutDivider =
+            section === "title" ||
+            section === "preview" ||
+            section === "body" ||
+            section === "mainImage" ||
+            section === "category";
+
+        return `space-y-4 pb-6 ${withoutDivider ? "" : "border-b border-white/10"} last:border-b-0`;
+    };
+    const sectionContentClassName = isModal ? "space-y-4" : adminCardContent;
 
     // ───────────────── UI – Admin Panel Style ──────────────────
     return (
-        <div className="mx-auto max-w-[1400px] xl:max-w-[1500px] px-3 sm:px-4 md:px-5 xl:px-8 py-4 sm:py-5 md:py-6 bg-[var(--adm-bg)] min-h-screen">
+        <div className={`mx-auto w-full ${isModal ? '' : 'max-w-[1400px] xl:max-w-[1500px] px-3 sm:px-4 md:px-5 xl:px-8 py-4 sm:py-5 md:py-6 bg-[var(--adm-bg)] min-h-screen'}`}>
             <main
                 id="app-main"
-                className="relative z-[40] space-y-4 sm:space-y-5 md:space-y-6 lg:space-y-8 pointer-events-auto touch-auto isolate lg:-translate-x-[120px]"
+                className={`relative z-[40] space-y-4 sm:space-y-5 md:space-y-6 lg:space-y-8 pointer-events-auto touch-auto isolate ${isModal ? '' : 'lg:-translate-x-[120px]'}`}
             >
-                {/* Back Button - отдельно */}
-                <div className="pointer-events-auto mb-3">
-                    <button
-                        onClick={() => navigate("/admin/articles")}
-                        type="button"
-                        className="rsf-cta group flex items-center gap-2 px-4 py-2 cursor-target pointer-events-auto touch-auto"
-                    >
-                        <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1 group-active:-translate-x-0.5 glowing-icon" />
-                        <span className="glowing-txt">
-                            Н<span className="faulty-letter">а</span>зад до стат<span className="faulty-letter">е</span>й
-                        </span>
-                    </button>
-                </div>
-
-                {/* Quick Actions - Сохранить, Опубликовать и Запланировать */}
-                <div className="mb-4 sm:mb-5 md:mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pointer-events-auto">
-                    <Button
-                        onClick={saveDraft}
-                        disabled={isUploading || !hasChanges}
-                        className={`
-                            group relative h-11 sm:h-9 px-4 sm:px-4 rounded-xl font-medium
-                            bg-black/30 text-gray-400
-                            ring-1 ring-white/10
-                            shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]
-                            transition-all duration-200
-                            hover:bg-white/10 hover:text-white
-                            hover:shadow-[0_0_14px_rgba(70,214,200,0.25)]
-                            hover:ring-[#46D6C8]/30
-                            focus-visible:ring-2 focus-visible:ring-[#46D6C8]/40
-                            active:scale-[0.98]
-                            disabled:opacity-60 disabled:cursor-not-allowed
-                            cursor-target flex-1 sm:flex-initial
-                        `}
-                    >
-                        <Save className="h-5 w-5 sm:h-4 sm:w-4 mr-2 text-[#46D6C8] group-hover:text-[#46D6C8] transition-all duration-300 group-hover:translate-y-[2px] group-hover:scale-110 group-active:translate-y-[3px] group-active:scale-100" />
-                        <span className="text-sm sm:text-base">Зберегти чернетку</span>
-                    </Button>
-                    <Button
-                        onClick={handlePublish}
-                        disabled={isUploading || publishDisabled}
-                        aria-label="Опублікувати статтю"
-                        className={`
-                            btn-back group relative z-0 h-11 sm:h-9 px-5 sm:px-5 cursor-target
-                            flex-1 sm:flex-initial
-                            disabled:opacity-60 disabled:cursor-not-allowed
-                        `}
-                    >
-                        <SendHorizonal
-                            className="h-5 w-5 sm:h-4 sm:w-4 mr-2 transition-all duration-300
-                                       group-hover:translate-x-[3px]
-                                       group-active:translate-x-[1px]"
-                        />
-                        <span className="text-sm sm:text-base">
-                            Опублікувати
-                        </span>
-                    </Button>
-
-                    {/* Запланувати */}
-                    <div
-                        className={`
-              sm:ml-auto relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 rounded-xl px-3 sm:px-3 py-2 sm:py-1.5 w-full sm:w-auto
-              ${scheduleEnabled ? 'ring-1 ring-[#46D6C8]/40 shadow-[0_0_18px_rgba(70,214,200,0.18)]' : ''}
-              ${!scheduleEnabled ? 'opacity-80' : ''}
-              bg-white/5 border border-white/10
-            `}
-                    >
-                        <HoloToggleSwitch
-                            id="schedule"
-                            checked={scheduleEnabled}
-                            onCheckedChange={setScheduleEnabled}
-                        />
-                        <Label htmlFor="schedule" className="text-sm cursor-pointer whitespace-nowrap">Запланувати</Label>
-                        <div className="relative flex-1 min-w-0 w-full">
-                            {/* Оверлей-подсказка СВЕРХУ */}
-                            {scheduleEnabled && (
-                                <div
-                                    aria-hidden
-                                    className="pointer-events-none absolute inset-0 z-[61] flex items-center px-3 text-base font-medium font-mono select-none tracking-wider"
-                                    style={{ opacity: 0.78 - overallProgress(scheduleText, effective12h) * 0.58 }}
-                                >
-                                    {effective12h ? (
-                                        <div className="flex items-center text-[#46D6C8]/65 drop-shadow-[0_0_6px_rgba(70,214,200,0.25)] whitespace-pre">
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).MM }}>MM</span>
-                                            <span>/</span>
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).DD }}>DD</span>
-                                            <span>/</span>
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).YYYY }}>YYYY</span>
-                                            <span className="mx-4"> </span>
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).HH }}>hh</span>
-                                            <span>:</span>
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).mm }}>mm</span>
-                                            <span className="mx-2"> </span>
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).AMPM }}>AM/PM</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center text-[#46D6C8]/65 drop-shadow-[0_0_6px_rgba(70,214,200,0.25)] whitespace-pre">
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).DD }}>дд</span>
-                                            <span>.</span>
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).MM }}>мм</span>
-                                            <span>.</span>
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).YYYY }}>рррр</span>
-                                            <span className="mx-4"> </span>
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).HH }}>гг</span>
-                                            <span>:</span>
-                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).mm }}>хх</span>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Сам инпут — ПРОЗРАЧНЫЙ и без blur */}
-                            <Input
-                                ref={scheduleInputRef}
-                                type="text"
-                                id="schedule-input"
-                                disabled={!scheduleEnabled}
-                                value={scheduleText}
-                                onChange={handleScheduleInputChange}
-                                onKeyDown={handleScheduleKeyDown}
-                                onBlur={(e) => {
-                                    handleScheduleBlur();
-                                    setIsInputFocused(false);
-                                }}
-                                onFocus={() => setIsInputFocused(true)}
-                                placeholder=""
-                                className={`
-                  ${glass} !bg-transparent !backdrop-blur-0 relative z-[60] text-white h-10 sm:h-9 w-full sm:w-64 md:w-80 font-mono tracking-wider text-sm sm:text-base
-                  focus-visible:ring-0 focus:outline-none
-                  border-[#46D6C8]/30
-                  hover:shadow-[0_0_12px_rgba(70,214,200,0.15)]
-                  focus:border-[#46D6C8] focus:shadow-[0_0_16px_rgba(70,214,200,0.28)]
-                  ${scheduleEnabled && !schedule && !scheduleInputError ? 'border-amber-400/70 shadow-[0_0_16px_rgba(245,158,11,0.35)]' : ''}
-                  ${scheduleInputError ? '!border-rose-500/70 !shadow-[0_0_16px_rgba(244,63,94,0.35)]' : ''}
-                `}
-                            />
-                        </div>
-                        {/* Popover с календарем под иконкой */}
-                        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className={`${glass} h-9 w-9 p-0 hover:shadow-[0_0_16px_rgba(70,214,200,0.35)] group cursor-target relative overflow-visible active:scale-90 transition-transform duration-150`}
-                                    disabled={!scheduleEnabled}
-                                    aria-label="Вибрати дату"
-                                    onMouseEnter={() => setIsButtonHovering(true)}
-                                    onMouseLeave={() => setIsButtonHovering(false)}
-                                    onClick={() => {
-                                        setCalendarAnimationTrigger(prev => prev + 1);
-                                    }}
-                                >
-                                    <div
-                                        className="relative w-5 h-5 flex items-center justify-center overflow-visible"
-                                        style={{ pointerEvents: 'auto' }}
-                                        onMouseEnter={(e) => e.stopPropagation()}
-                                        onMouseLeave={(e) => e.stopPropagation()}
-                                    >
-                                        {/* Анимированный компонент календаря Calendar1 */}
-                                        <Calendar1
-                                            width={20}
-                                            height={20}
-                                            strokeWidth={2}
-                                            stroke="currentColor"
-                                            className="w-5 h-5 text-white transition-colors duration-300 group-hover:text-[#46D6C8]"
-                                            triggerAnimation={calendarAnimationTrigger}
-                                            isHoveringExternal={isButtonHovering}
-                                            isFocused={isInputFocused}
-                                            isPopoverOpen={isPopoverOpen}
-                                        />
-                                    </div>
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                                className="w-auto p-0 bg-[#04070A]/80 backdrop-blur border border-[#46D6C8]/20 rounded-2xl shadow-[0_0_40px_rgba(70,214,200,0.12)]"
-                                align="end"
-                                side="bottom"
-                                sideOffset={10}
-                            >
-                                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-0">
-                                    {/* Календарь */}
-                                    <div className="p-3 md:p-4">
-                                        <DayPicker
-                                            mode="single"
-                                            selected={schedule ? new Date(schedule) : undefined}
-                                            onSelect={(day) => {
-                                                if (!day) return;
-                                                const cur = schedule ? new Date(schedule) : new Date();
-                                                const d = new Date(day);
-                                                d.setHours(cur.getHours(), cur.getMinutes(), 0, 0);
-                                                const iso = d.toISOString();
-                                                setSchedule(iso);
-                                                setScheduleText(fromISOToText(iso));
-                                            }}
-                                            weekStartsOn={1}
-                                            disabled={(day) => {
-                                                const t = new Date();
-                                                t.setHours(0, 0, 0, 0);
-                                                return day < t; // без прошлого
-                                            }}
-                                            className="rsf-cal"
-                                            classNames={{
-                                                caption: "rsf-cal-caption",
-                                                caption_label: "rsf-cal-caption-label",
-                                                nav: "rsf-cal-nav",
-                                                table: "rsf-cal-table",
-                                                head_row: "rsf-cal-head-row",
-                                                head_cell: "rsf-cal-head",
-                                                row: "rsf-cal-row",
-                                                cell: "rsf-cal-cell",
-                                                day: "rsf-cal-day",
-                                                day_selected: "rsf-cal-day rsf-cal-day--sel",
-                                                day_today: "rsf-cal-day rsf-cal-day--today",
-                                                day_disabled: "rsf-cal-day rsf-cal-day--dis",
-                                            }}
-                                            components={{
-                                                IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
-                                                IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
-                                            }}
-                                        />
-                                    </div>
-
-                                    {/* Время / 12–24h */}
-                                    <div className="px-3 md:px-4 pb-4 flex flex-col gap-3 md:gap-4">
-                                        <div className="text-xs text-[#46D6C8]/70 pt-3 md:pt-4">
-                                            Час публікації
-                                        </div>
-
-                                        <div className="flex items-end gap-4">
-                                            {/* Колёсики часов/минут */}
-                                            <TimeWheel
-                                                label={effective12h ? "Hours" : "Години"}
-                                                value={schedule ? (effective12h
-                                                    ? (() => {
-                                                        const h = new Date(schedule).getHours();
-                                                        return h === 0 ? 12 : h > 12 ? h - 12 : h;
-                                                    })()
-                                                    : new Date(schedule).getHours())
-                                                    : undefined}
-                                                onChange={(h) => {
-                                                    const base = schedule ? new Date(schedule) : new Date();
-                                                    if (effective12h) {
-                                                        // Для 12h формата учитываем текущий AM/PM
-                                                        const currentH = base.getHours();
-                                                        const isPM = currentH >= 12;
-                                                        const newHour = h === 12
-                                                            ? (isPM ? 12 : 0)
-                                                            : (isPM ? h + 12 : h);
-                                                        base.setHours(newHour);
-                                                    } else {
-                                                        base.setHours(h);
-                                                    }
-                                                    const iso = base.toISOString();
-                                                    setSchedule(iso);
-                                                    setScheduleText(fromISOToText(iso));
-                                                }}
-                                                range={effective12h ? [1, 12] : [0, 23]}
-                                                pad
-                                                className="w-24"
-                                                key={effective12h ? `hours-12h-${schedule}` : `hours-24h-${schedule}`}
-                                            />
-                                            <div className="pb-8 text-[#46D6C8]/70">:</div>
-                                            <TimeWheel
-                                                label="Хвилини"
-                                                value={schedule ? new Date(schedule).getMinutes() : undefined}
-                                                onChange={(m) => {
-                                                    const base = schedule ? new Date(schedule) : new Date();
-                                                    base.setMinutes(m);
-                                                    const iso = base.toISOString();
-                                                    setSchedule(iso);
-                                                    setScheduleText(fromISOToText(iso));
-                                                }}
-                                                range={[0, 59]}
-                                                pad
-                                                className="w-24"
-                                            />
-
-                                            {/* AM/PM для 12h */}
-                                            {effective12h && (
-                                                <div className="flex flex-col items-start">
-                                                    <div className="text-[11px] mb-1 text-[#46D6C8]/60">АМ/РМ</div>
-                                                    <div className="inline-flex rounded-xl overflow-hidden ring-1 ring-[#46D6C8]/20">
-                                                        {(["AM", "PM"] as const).map((p) => {
-                                                            const curH = schedule ? new Date(schedule).getHours() : 0;
-                                                            const active = (p === "AM" && curH < 12) || (p === "PM" && curH >= 12);
-                                                            return (
-                                                                <button
-                                                                    key={p}
-                                                                    onClick={() => {
-                                                                        const d = schedule ? new Date(schedule) : new Date();
-                                                                        const h = d.getHours();
-                                                                        if (p === "AM" && h >= 12) d.setHours(h - 12);
-                                                                        if (p === "PM" && h < 12) d.setHours(h + 12);
-                                                                        const iso = d.toISOString();
-                                                                        setSchedule(iso);
-                                                                        setScheduleText(fromISOToText(iso));
-                                                                    }}
-                                                                    className={`px-3 py-2 text-sm transition
-                                                                      ${active
-                                                                            ? "bg-[#46D6C8]/20 text-[#46D6C8]"
-                                                                            : "bg-white/5 text-gray-400 hover:bg-white/8 hover:text-[#46D6C8]"}
-                                                                    `}
-                                                                >
-                                                                    {p}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Быстрые кнопки */}
-                                        <div className="flex gap-2 pt-1">
-                                            <button
-                                                onClick={() => {
-                                                    const d = new Date();
-                                                    d.setMinutes(d.getMinutes() + 15, 0, 0);
-                                                    const iso = d.toISOString();
-                                                    setSchedule(iso);
-                                                    setScheduleText(fromISOToText(iso));
-                                                }}
-                                                className="rsf-ghost-btn"
-                                            >
-                                                +15 хв
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    const d = new Date();
-                                                    d.setHours(12, 0, 0, 0);
-                                                    const iso = d.toISOString();
-                                                    setSchedule(iso);
-                                                    setScheduleText(fromISOToText(iso));
-                                                }}
-                                                className="rsf-ghost-btn"
-                                            >
-                                                Сьогодні 12:00
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    const d = new Date();
-                                                    d.setDate(d.getDate() + 1);
-                                                    d.setHours(9, 0, 0, 0);
-                                                    const iso = d.toISOString();
-                                                    setSchedule(iso);
-                                                    setScheduleText(fromISOToText(iso));
-                                                }}
-                                                className="rsf-ghost-btn"
-                                            >
-                                                Завтра 09:00
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                        <Select
-                            value={timeFormatMode}
-                            onValueChange={(v) => setTimeFormatMode(v as "auto" | "12" | "24")}
-                            disabled={!scheduleEnabled}
+                {/* Back Button - отдельно (скрываем в модалке) */}
+                {!isModal && (
+                    <div className="pointer-events-auto mb-3">
+                        <button
+                            onClick={() => navigate("/admin/articles")}
+                            type="button"
+                            className="rsf-cta group flex items-center gap-2 px-4 py-2 cursor-target pointer-events-auto touch-auto"
                         >
-                            <SelectTrigger className={`${glass} h-10 sm:h-9 w-full sm:w-24 border-[#46D6C8]/30 text-sm sm:text-base ${!scheduleEnabled ? "opacity-50 cursor-not-allowed" : "cursor-target"}`}>
-                                <SelectValue placeholder="Години">
-                                    {timeFormatMode === "auto"
-                                        ? (effective12h ? "12h (Авто)" : "24h (Авто)")
-                                        : timeFormatMode === "12"
-                                            ? "12h"
-                                            : "24h"}
-                                </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent className="backdrop-blur bg-[#04070A]/80 border border-white/10 shadow-[0_0_40px_rgba(70,214,200,0.15)]">
-                                <SelectItem value="auto" className="cursor-target">
-                                    Авто {effective12h ? "(12h)" : "(24h)"}
-                                </SelectItem>
-                                <SelectItem value="24" className="cursor-target">24h</SelectItem>
-                                <SelectItem value="12" className="cursor-target">12h</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {/* Желтое предупреждение - когда включено, но дата не указана */}
-                        {scheduleEnabled && !schedule && !scheduleInputError && (
-                            <span className="absolute -top-6 sm:-top-6 left-2 text-xs sm:text-[13px] font-medium z-10 break-words" style={{ color: 'rgb(251, 191, 36)', textShadow: '0 0 8px rgba(245, 158, 11, 0.6)' }}>
-                                Вкажіть дату та час
+                            <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1 group-active:-translate-x-0.5 glowing-icon" />
+                            <span className="glowing-txt">
+                                Н<span className="faulty-letter">а</span>зад до стат<span className="faulty-letter">е</span>й
                             </span>
-                        )}
-                        {/* Розовые ошибки - валидация или другие ошибки */}
-                        {scheduleEnabled && scheduleInputError && (
-                            <span className="absolute -top-6 sm:-top-6 left-2 text-xs sm:text-[13px] text-rose-500 font-medium z-10 drop-shadow-[0_0_4px_rgba(244,63,94,0.5)] break-words">{scheduleInputError}</span>
-                        )}
-                        {scheduleEnabled && schedule && scheduleError && (
-                            <span className="absolute -top-6 sm:-top-6 left-2 text-xs sm:text-[13px] text-rose-500 font-medium z-10 drop-shadow-[0_0_4px_rgba(244,63,94,0.5)] break-words">{scheduleError}</span>
-                        )}
+                        </button>
                     </div>
-                </div>
-
-                {/* Status Bar */}
-                {hasChanges && (
-                    <span className="relative inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ring-1 transition-colors bg-yellow-500/10 text-yellow-300 ring-yellow-400/30 animate-fade-in leading-none">
-                        <Circle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-pulse shrink-0" />
-                        <span className="leading-none pl-5">Незбережені зміни</span>
-                    </span>
                 )}
 
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                    {/* Left column */}
-                    <div className="space-y-5 lg:col-span-2">
+                {!isModal && (
+                    <>
+                        {/* Quick Actions - Сохранить, Опубликовать и Запланировать */}
+                        <div className="mb-4 sm:mb-5 md:mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pointer-events-auto">
+                            <Button
+                                onClick={saveDraft}
+                                disabled={isUploading || !hasChanges}
+                                className="h-11 sm:h-9 px-4 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-target flex-1 sm:flex-initial"
+                            >
+                                <Save className="h-4 w-4 mr-2 text-[#46D6C8]" />
+                                <span className="text-sm sm:text-base">Зберегти чернетку</span>
+                            </Button>
+                            <Button
+                                onClick={handlePublish}
+                                disabled={isUploading || publishDisabled}
+                                aria-label="Опублікувати статтю"
+                                className="h-11 sm:h-9 px-4 rounded-lg bg-[#46D6C8] text-black font-semibold hover:opacity-90 hover:shadow-[0_0_30px_rgba(70,214,200,0.8)] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-target flex-1 sm:flex-initial"
+                            >
+                                <SendHorizonal className="h-4 w-4 mr-2" />
+                                <span className="text-sm sm:text-base">
+                                    Опублікувати
+                                </span>
+                            </Button>
+                        </div>
+
+                        {/* Status Bar */}
+                        {hasChanges && (
+                            <span className="relative inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ring-1 transition-colors bg-yellow-500/10 text-yellow-300 ring-yellow-400/30 animate-fade-in leading-none">
+                                <Circle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-pulse shrink-0" />
+                                <span className="leading-none pl-5">Незбережені зміни</span>
+                            </span>
+                        )}
+                    </>
+                )}
+
+                <div className={isModal ? "space-y-6" : "mx-auto max-w-6xl space-y-6"}>
+                    {/* Single Column Flow */}
+                    <div className="space-y-6">
                         {/* Title */}
-                        <section className={adminCardStyle}>
-                            <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
-                            <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-3">
+                        <section className={getSectionClassName("title")}>
+                            {!isModal && <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />}
+                            <div className={sectionContentClassName}>
+                                <header className="flex items-center gap-2 border-b border-white/10 pb-2 mb-4">
                                     <div className="relative h-12 w-12 flex items-center justify-center overflow-visible" style={{ minWidth: '3rem', minHeight: '3rem' }}>
                                         <OptimizedLottie
                                             src="/lottie/Address-Book.json"
@@ -2699,51 +2490,316 @@ export default function ArticleEditorModern({
                                             loop={isTitleFocused}
                                         />
                                     </div>
-                                    <h3 className="text-[16px] font-semibold text-white">Заголовок статті</h3>
+                                    <h3 className="text-lg font-semibold text-[#46D6C8]">Заголовок статті</h3>
                                 </header>
-                                <Input
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                    onFocus={() => {
-                                        // Сбрасываем состояние других полей при активации этого поля
-                                        setIsBodyFocused(false);
-                                        setIsPreviewFocused(false);
-                                        setIsTitleFocused(true);
-                                    }}
-                                    onBlur={(e) => {
-                                        // Добавляем задержку, чтобы проверить, куда перешел фокус
-                                        setTimeout(() => {
-                                            const activeElement = document.activeElement as HTMLElement;
-                                            
-                                            // Если фокус перешел на кнопку панели инструментов редактора, не сбрасываем
-                                            const toolbarDiv = document.querySelector('.flex.flex-wrap.gap-1.rounded-xl.border');
-                                            const isToolbarButton = toolbarDiv?.contains(activeElement) || false;
-                                            
-                                            // Проверяем, не перешел ли фокус на другое поле формы
-                                            const isFormField = activeElement?.tagName === 'TEXTAREA' ||
-                                                activeElement?.tagName === 'INPUT' ||
-                                                (activeElement?.contentEditable === 'true');
-                                            
-                                            // Сбрасываем состояние только если фокус не на кнопке панели и не на другом поле формы
-                                            if (!isFormField && !isToolbarButton) {
-                                                setIsTitleFocused(false);
-                                            }
-                                        }, 100);
-                                    }}
-                                    placeholder="Введіть заголовок..."
-                                    className={`${glassInput} h-11 rounded-xl px-3 text-[15px] focus:glow-focus ${formErrors.title ? '!ring-rose-500/70 !border-rose-500/70' : ''}`}
-                                />
-                                {formErrors.title && (
+                                <div className="space-y-4">
+                                    <Input
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        onFocus={() => {
+                                            setIsBodyFocused(false);
+                                            setIsPreviewFocused(false);
+                                            setIsTitleFocused(true);
+                                        }}
+                                        onBlur={(e) => {
+                                            setTimeout(() => {
+                                                const activeElement = document.activeElement as HTMLElement;
+                                                const toolbarDiv = document.querySelector('.flex.flex-wrap.gap-1.rounded-xl.border');
+                                                const isToolbarButton = toolbarDiv?.contains(activeElement) || false;
+                                                const isFormField = activeElement?.tagName === 'TEXTAREA' ||
+                                                    activeElement?.tagName === 'INPUT' ||
+                                                    (activeElement?.contentEditable === 'true');
+                                                if (!isFormField && !isToolbarButton) {
+                                                    setIsTitleFocused(false);
+                                                }
+                                            }, 100);
+                                        }}
+                                        placeholder="Введіть заголовок статті..."
+                                        className={`${getInputClass(!!formErrors.title)} text-lg font-medium h-12`}
+                                    />
+                                    {/* Error message reused from outside if possible, otherwise define here */}
+                                    
+                                    <div className="space-y-2">
+                                        <h4 className="text-sm font-semibold text-[#46D6C8] flex items-center gap-2">
+                                            <Calendar className="h-4 w-4 text-[#46D6C8]" />
+                                            Дата публікації
+                                        </h4>
+                                        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                                            <PopoverAnchor asChild>
+                                                <div className="relative flex items-center gap-2 w-full">
+                                                    {/* Overlay hints */}
+                                                    <div
+                                                        aria-hidden
+                                                        className="pointer-events-none absolute inset-0 z-[10] flex items-center px-3 text-base font-medium font-mono select-none tracking-wider"
+                                                        style={{ opacity: 0.78 - overallProgress(scheduleText, effective12h) * 0.58 }}
+                                                    >
+                                                    {effective12h ? (
+                                                        <div className="flex items-center text-gray-600 whitespace-pre">
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).MM }}>mm</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).MM }}>/</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).DD }}>dd</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).DD }}>/</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).YYYY }}>yyyy</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).YYYY }}>   </span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).HH }}>hh</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).HH }}>:</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).mm }}>mm</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).mm }}>      </span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, true).AMPM }}>am/pm</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center text-gray-600 whitespace-pre">
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).DD }}>дд</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).DD }}>.</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).MM }}>мм</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).MM }}>.</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).YYYY }}>рррр</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).YYYY }}>   </span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).HH }}>гг</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).HH }}>:</span>
+                                                            <span style={{ opacity: 1 - segmentProgress(scheduleText, false).mm }}>хх</span>
+                                                        </div>
+                                                    )}
+                                                    </div>
+                                                <Input
+                                                    name="schedule_display"
+                                                    value={scheduleText}
+                                                    onChange={handleScheduleInputChange}
+                                                    onKeyDown={handleScheduleKeyDown}
+                                                    placeholder=""
+                                                    className={`${getInputClass(!!scheduleInputError)} flex-1 font-mono tracking-wider z-[20] relative text-base`}
+                                                    onFocus={() => {
+                                                        setScheduleEnabled(true);
+                                                        setIsInputFocused(true);
+                                                    }}
+                                                    onBlur={() => {
+                                                        setIsInputFocused(false);
+                                                        handleScheduleBlur();
+                                                    }}
+                                                    autoComplete="off"
+                                                />
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className="backdrop-blur-md bg-[#04070A]/80 border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.05)] hover:bg-white/10 hover:border-[#46D6C8]/20 transition-colors h-11 w-12 p-0 hover:shadow-[0_0_16px_rgba(70,214,200,0.35)] group cursor-target relative overflow-visible active:scale-90 transition-transform duration-150 shrink-0"
+                                                        aria-label="Вибрати дату"
+                                                        onMouseEnter={() => setIsButtonHovering(true)}
+                                                        onMouseLeave={() => setIsButtonHovering(false)}
+                                                        onClick={() => {
+                                                            setScheduleEnabled(true);
+                                                            setIsPopoverOpen(true);
+                                                        }}
+                                                    >
+                                                        <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
+                                                            <div className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[#46D6C8]/5 blur-md" />
+                                                            <Calendar1
+                                                                className="text-white/70 group-hover:text-[#46D6C8] transition-colors duration-300"
+                                                                width={20}
+                                                                height={20}
+                                                                isHoveringExternal={isButtonHovering}
+                                                                isFocused={isInputFocused}
+                                                                isPopoverOpen={isPopoverOpen}
+                                                            />
+                                                        </div>
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            className="backdrop-blur-md bg-[#04070A]/80 border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.05)] hover:bg-white/10 hover:border-[#46D6C8]/20 transition-colors h-11 w-12 p-0 hover:shadow-[0_0_16px_rgba(70,214,200,0.35)] group cursor-target relative overflow-visible active:scale-90 transition-transform duration-150 shrink-0"
+                                                            aria-label="Встановити поточну дату і час"
+                                                            tabIndex={0}
+                                                            onClick={() => {
+                                                                const now = new Date().toISOString();
+                                                                setScheduleEnabled(true);
+                                                                setSchedule(now);
+                                                                setScheduleText(fromISOToText(now));
+                                                                setScheduleInputError("");
+                                                                wasManuallyCleared.current = false;
+                                                            }}
+                                                        >
+                                                            <Clock className="h-5 w-5 text-white/70 group-hover:text-[#46D6C8] transition-colors duration-300" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent
+                                                        side="top"
+                                                        className="select-none bg-[#04070A]/80 text-white border border-[#46D6C8]/30 shadow-[0_0_20px_rgba(70,214,200,.15)]"
+                                                    >
+                                                        Зараз
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                </div>
+                                            </PopoverAnchor>
+                                            {!isModal && scheduleInputError && (
+                                                <p className="mt-1 text-xs text-rose-400">{scheduleInputError}</p>
+                                            )}
+                                            <PopoverContent
+                                                className="w-auto p-0 bg-[#04070A]/45 backdrop-blur-md border border-[#46D6C8]/20 rounded-2xl shadow-[0_0_40px_rgba(70,214,200,0.12)]"
+                                                align="end"
+                                                side="bottom"
+                                                sideOffset={2}
+                                            >
+                                                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-0">
+                                                    <div className="p-3 md:p-4">
+                                                        <DayPicker
+                                                            mode="single"
+                                                            selected={schedule ? new Date(schedule) : undefined}
+                                                            onSelect={(day) => {
+                                                                if (!day) return;
+                                                                const cur = schedule ? new Date(schedule) : new Date();
+                                                                const d = new Date(day);
+                                                                d.setHours(cur.getHours(), cur.getMinutes(), 0, 0);
+                                                                setScheduleEnabled(true);
+                                                                setSchedule(d.toISOString());
+                                                                setScheduleInputError("");
+                                                            }}
+                                                            disabled={(day) => {
+                                                                const t = new Date();
+                                                                t.setHours(0, 0, 0, 0);
+                                                                return day < t;
+                                                            }}
+                                                            weekStartsOn={1}
+                                                            className="rsf-cal"
+                                                            classNames={{
+                                                                caption: "rsf-cal-caption",
+                                                                caption_label: "rsf-cal-caption-label",
+                                                                nav: "rsf-cal-nav cursor-target",
+                                                                table: "rsf-cal-table",
+                                                                head_row: "rsf-cal-head-row",
+                                                                head_cell: "rsf-cal-head",
+                                                                row: "rsf-cal-row",
+                                                                cell: "rsf-cal-cell",
+                                                                day: "rsf-cal-day cursor-target",
+                                                                day_selected: "rsf-cal-day rsf-cal-day--sel cursor-target",
+                                                                day_today: "rsf-cal-day rsf-cal-day--today cursor-target",
+                                                                day_disabled: "rsf-cal-day rsf-cal-day--dis",
+                                                            }}
+                                                            components={{
+                                                                IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
+                                                                IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="px-4 pb-4 flex flex-col gap-2 pt-10">
+                                                        <div className="text-sm font-medium text-[#46D6C8] text-center mb-2">
+                                                            Час події
+                                                        </div>
+                                                        <div className="flex items-start justify-center gap-2">
+                                                            <div className="flex flex-col items-center gap-3">
+                                                                <EventTimeWheel
+                                                                    label={effective12h ? "Hours" : "Години"}
+                                                                    value={schedule ? (effective12h
+                                                                        ? (() => {
+                                                                            const h = new Date(schedule).getHours();
+                                                                            return h === 0 ? 12 : h > 12 ? h - 12 : h;
+                                                                        })()
+                                                                        : new Date(schedule).getHours())
+                                                                        : undefined}
+                                                                    onChange={(h) => {
+                                                                        const base = schedule ? new Date(schedule) : new Date();
+                                                                        if (effective12h) {
+                                                                            const currentH = base.getHours();
+                                                                            const isPM = currentH >= 12;
+                                                                            const newHour = h === 12
+                                                                                ? (isPM ? 12 : 0)
+                                                                                : (isPM ? h + 12 : h);
+                                                                            base.setHours(newHour);
+                                                                        } else {
+                                                                            base.setHours(h);
+                                                                        }
+                                                                        setScheduleEnabled(true);
+                                                                        setSchedule(base.toISOString());
+                                                                    }}
+                                                                    range={effective12h ? [1, 12] : [0, 23]}
+                                                                    pad
+                                                                    className="w-24"
+                                                                />
+                                                            </div>
+
+                                                            <div className="pt-6 text-2xl font-bold text-[#46D6C8]/70">:</div>
+
+                                                            <div className="flex flex-col items-center">
+                                                                <EventTimeWheel
+                                                                    label="Хвилини"
+                                                                    value={schedule ? new Date(schedule).getMinutes() : 0}
+                                                                    onChange={(m) => {
+                                                                        const base = schedule ? new Date(schedule) : new Date();
+                                                                        base.setMinutes(m);
+                                                                        setScheduleEnabled(true);
+                                                                        setSchedule(base.toISOString());
+                                                                    }}
+                                                                    range={[0, 59]}
+                                                                    pad
+                                                                    className="w-24"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mt-2 text-xs w-[180px] flex flex-col gap-2">
+                                                            <NeonPopoverList
+                                                                value={timeFormatMode}
+                                                                onChange={(v) => setTimeFormatMode(v as "auto" | "12" | "24")}
+                                                                width={0}
+                                                                minW={110}
+                                                                className="w-full text-base h-12 bg-white/5 border border-[#46D6C8]/20"
+                                                                color="teal"
+                                                                options={[
+                                                                    { id: "auto", label: "Авто", textColor: "text-neutral-300", hoverColor: "teal" },
+                                                                    { id: "12", label: "12h", textColor: "text-neutral-300", hoverColor: "teal" },
+                                                                    { id: "24", label: "24h", textColor: "text-neutral-300", hoverColor: "teal" }
+                                                                ]}
+                                                            />
+
+                                                            {effective12h && (
+                                                                <div className="inline-flex rounded-lg overflow-hidden ring-1 ring-[#46D6C8]/20 bg-white/5 p-0.5 h-9 items-center w-fit">
+                                                                    {(["AM", "PM"] as const).map((p) => {
+                                                                        const curH = schedule ? new Date(schedule).getHours() : 0;
+                                                                        const active = (p === "AM" && curH < 12) || (p === "PM" && curH >= 12);
+                                                                        return (
+                                                                            <button
+                                                                                key={p}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const d = schedule ? new Date(schedule) : new Date();
+                                                                                    const h = d.getHours();
+                                                                                    if (p === "AM" && h >= 12) d.setHours(h - 12);
+                                                                                    if (p === "PM" && h < 12) d.setHours(h + 12);
+                                                                                    setScheduleEnabled(true);
+                                                                                    setSchedule(d.toISOString());
+                                                                                }}
+                                                                                className={`px-2 h-full text-xs font-semibold transition rounded-md flex items-center
+                                                                                    ${active
+                                                                                        ? "bg-[#46D6C8] text-[#04070A]"
+                                                                                        : "text-gray-400 hover:text-white hover:bg-white/10"}
+                                                                                `}
+                                                                            >
+                                                                                {p}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </div>
+                                {!isModal && formErrors.title && (
                                     <p className="mt-1 text-xs text-rose-400">{formErrors.title}</p>
                                 )}
                             </div>
                         </section>
 
                         {/* Preview */}
-                        <section className={adminCardStyle}>
-                            <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
-                            <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-3">
+                        <section className={getSectionClassName("preview")}>
+                            {!isModal && <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />}
+                            <div className={sectionContentClassName}>
+                                <header className="flex items-center gap-2 border-b border-white/10 pb-2 mb-4">
                                     <div className="relative h-9 w-9 flex items-center justify-center">
                                         <OptimizedLottie
                                             src="/lottie/Book.json"
@@ -2752,7 +2808,7 @@ export default function ArticleEditorModern({
                                             loop={isPreviewFocused}
                                         />
                                     </div>
-                                    <h3 className="text-[16px] font-semibold text-white">Превʼю / Короткий опис</h3>
+                                    <h3 className="text-lg font-semibold text-[#46D6C8]">Превʼю / Короткий опис</h3>
                                 </header>
                                 <Textarea
                                     value={preview}
@@ -2787,17 +2843,17 @@ export default function ArticleEditorModern({
                                     className={`${glassInput} min-h-[90px] resize-none focus:glow-focus ${formErrors.shortDescription ? '!ring-rose-500/70 !border-rose-500/70' : ''}`}
                                     rows={4}
                                 />
-                                {formErrors.shortDescription && (
+                                {!isModal && formErrors.shortDescription && (
                                     <p className="mt-1 text-xs text-rose-400">{formErrors.shortDescription}</p>
                                 )}
                             </div>
                         </section>
 
                         {/* Body */}
-                        <section className={adminCardStyle}>
-                            <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
-                            <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-3">
+                        <section className={getSectionClassName("body")}>
+                            {!isModal && <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />}
+                            <div className={sectionContentClassName}>
+                                <header className="flex items-center gap-2 border-b border-white/10 pb-2 mb-4">
                                     <div className="relative h-6 w-6 flex items-center justify-center">
                                         <OptimizedLottie
                                             key="body-icon"
@@ -2808,7 +2864,7 @@ export default function ArticleEditorModern({
                                             filterColors={bodyIconFilterColors}
                                         />
                                     </div>
-                                    <h3 className="text-[16px] font-semibold text-white">Основний текст</h3>
+                                    <h3 className="text-lg font-semibold text-[#46D6C8]">Основний текст</h3>
                                 </header>
                                 <div className={`${formErrors.content ? 'ring-1 ring-rose-500/70 rounded-xl p-1 -m-1' : ''}`}>
                                 <RichTextEditor
@@ -2823,7 +2879,7 @@ export default function ArticleEditorModern({
                                     onBlur={() => setIsBodyFocused(false)}
                                 />
                                 </div>
-                                {formErrors.content && (
+                                {!isModal && formErrors.content && (
                                     <p className="mt-2 text-xs text-rose-400">{formErrors.content}</p>
                                 )}
                                 <p className="mt-3 text-xs text-[#46D6C8]/60">
@@ -2833,81 +2889,32 @@ export default function ArticleEditorModern({
                         </section>
 
                         {/* Main Image */}
-                        <section className={adminCardStyle}>
-                            <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
-                            <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
-                                    <Image className="h-4 w-4 text-[#46D6C8]/80" />
-                                    <h3 className="text-[16px] font-semibold text-white">Головне зображення</h3>
+                        <section className={getSectionClassName("mainImage")}>
+                            {!isModal && <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />}
+                            <div className={sectionContentClassName}>
+                                <header className="flex items-center gap-2 border-b border-white/10 pb-2 mb-4">
+                                    <Image className="h-4 w-4 text-[#46D6C8]" />
+                                    <h3 className="text-lg font-semibold text-[#46D6C8]">Головне зображення</h3>
                                 </header>
-                                <div className={`rounded-xl p-4 bg-black/40 ring-1 ${formErrors.image ? '!ring-rose-500/70' : 'ring-[#46D6C8]/20'} relative`}>
-                                    {mainImageUrl ? (
-                                        <div className="relative group">
-                                            {isUploading && (
-                                                <div className="absolute inset-0 z-20 rounded-xl bg-black/60 grid place-items-center">
-                                                    <span className="text-[#46D6C8] text-sm animate-pulse">Завантаження...</span>
-                                                </div>
-                                            )}
-                                            <img
-                                                src={mainImageUrl}
-                                                alt="Main"
-                                                className="w-full max-h-64 rounded-xl object-contain ring-1 ring-[#46D6C8]/20 group-hover:ring-[#46D6C8]/40 transition-all"
-                                            />
-                                            <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
-                                                <button
-                                                    onClick={async () => {
-                                                        if (mainImageUrl) await removeMediaByPublicUrl(mainImageUrl);
-                                                        setMainImageUrl(undefined);
-                                                    }}
-                                                    className="flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 rounded-lg bg-neutral-900/70 text-neutral-200 ring-1 ring-[#46D6C8]/25 hover:bg-neutral-900 hover:ring-[#46D6C8]/45 transition cursor-target text-sm sm:text-base"
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                    Видалити
-                                                </button>
-                                                <label className="cursor-pointer">
-                                                    <input
-                                                        id="main-image-upload"
-                                                        type="file"
-                                                        accept="image/jpeg, image/png, image/webp, image/gif"
-                                                        className="hidden"
-                                                        onChange={handleMainImageUpload}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => document.getElementById('main-image-upload')?.click()}
-                                                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 rounded-lg bg-[#46D6C8]/20 text-[#46D6C8] ring-1 ring-[#46D6C8]/40 hover:bg-[#46D6C8]/30 hover:ring-[#46D6C8]/50 transition cursor-target text-sm sm:text-base"
-                                                    >
-                                                        <Upload className="h-4 w-4" />
-                                                        Замінити
-                                                    </button>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <label
-                                            onDragOver={handleDragOver}
-                                            onDragLeave={handleDragLeave}
-                                            onDrop={handleDrop}
-                                            className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 transition-all ${formErrors.image
-                                                ? '!border-rose-500/80 bg-rose-500/5'
-                                                : isDragging
-                                                    ? "border-[#46D6C8] bg-[#46D6C8]/20 ring-2 ring-[#46D6C8]/40"
-                                                    : "border-[#46D6C8]/30 bg-[#46D6C8]/10 hover:border-[#46D6C8]/50 hover:bg-[#46D6C8]/20"}
-                                            `}
-                                        >
-                                            <input
-                                                type="file"
-                                                accept="image/jpeg, image/png, image/webp, image/gif"
-                                                className="hidden"
-                                                onChange={(e) => handleMainImagePick(e.target.files?.[0])}
-                                            />
-                                            <ImageIcon className={`h-6 w-6 ${isDragging ? "text-[#46D6C8]" : "text-[#46D6C8]/60"}`} />
-                                            <span className="text-sm text-[#46D6C8]/80">
-                                                {isDragging ? "Відпустіть для завантаження" : "Перетягніть зображення або натисніть для вибору"}
-                                            </span>
-                                        </label>
-                                    )}
-                                    {formErrors.image && (
+                                <div className="space-y-2">
+                                    <ImageUploader
+                                        label="Фото статті"
+                                        folder="articles"
+                                        currentUrl={mainImageUrl}
+                                        onUpload={(url) => {
+                                            setMainImageUrl(url);
+                                            // Очистка ошибки при успешной загрузке
+                                            if (url) {
+                                                setFormErrors(prev => {
+                                                    const next = { ...prev };
+                                                    delete next.image;
+                                                    return next;
+                                                });
+                                            }
+                                        }}
+                                        error={!!formErrors.image}
+                                    />
+                                    {!isModal && formErrors.image && (
                                         <p className="mt-2 text-xs text-rose-400">{formErrors.image}</p>
                                     )}
                                 </div>
@@ -2915,265 +2922,257 @@ export default function ArticleEditorModern({
                         </section>
 
                         {/* Gallery */}
-                        <section className={adminCardStyle}>
-                            <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
-                            <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
-                                    <Image className="h-4 w-4 text-[#46D6C8]/80" />
-                                    <h3 className="text-[16px] font-semibold text-white">Галерея</h3>
+                        <section className={getSectionClassName("gallery")}>
+                            {!isModal && <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />}
+                            <div className={sectionContentClassName}>
+                                <header className="flex items-center gap-2 border-b border-white/10 pb-2 mb-4">
+                                    <Image className="h-4 w-4 text-[#46D6C8]" />
+                                    <h3 className="text-lg font-semibold text-[#46D6C8]">Галерея</h3>
                                 </header>
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4">
-                                    <div className="inline-flex items-center">
-                                        <input
-                                            ref={galleryInputRef}
-                                            type="file"
-                                            multiple
-                                            accept="image/jpeg, image/png, image/webp, image/gif"
-                                            onChange={(e) => handleGalleryPick(e.target.files)}
-                                            className="hidden"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => galleryInputRef.current?.click()}
-                                            className="flex items-center gap-2 px-3 py-2.5 sm:py-2 rounded-lg bg-[#46D6C8]/20 text-[#46D6C8] ring-1 ring-[#46D6C8]/40 hover:bg-[#46D6C8]/30 hover:ring-[#46D6C8]/50 transition cursor-target text-sm sm:text-base"
-                                        >
-                                            <Upload className="h-4 w-4 sm:h-4 sm:w-4" />
-                                            Додати зображення
-                                        </button>
-                                    </div>
-                                    <p className="text-xs sm:text-sm text-[#46D6C8]/60">PNG, JPG, WEBP. Підтримується drag & drop.</p>
-                                </div>
-                                {gallery.length > 0 && (
-                                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                                        {gallery.map((src, i) => (
-                                            <motion.div
-                                                key={i}
-                                                initial={{ opacity: 0, scale: 0.9 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                className="group relative overflow-hidden rounded-xl border border-[#46D6C8]/20 hover:border-[#46D6C8]/40 transition-all"
-                                            >
-                                                <img src={src} alt="gallery" className="h-36 w-full object-cover" />
-                                                <button
-                                                    onClick={() => removeGalleryItem(i)}
-                                                    className="absolute right-2 top-2 rounded-full bg-red-500/80 backdrop-blur-sm p-1.5 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-500 hover:scale-110 ring-1 ring-red-400/30"
-                                                    aria-label="Remove"
+                                <div className="mb-4">
+                                    <ImageUploader
+                                        label=""
+                                        folder="articles"
+                                        currentUrl={null}
+                                        onUpload={() => {}}
+                                        multiple
+                                        onUploadMany={(urls) => {
+                                            // Використовуємо Set для уникнення дублікатів, так як ImageUploader може повертати накопичувальний список
+                                            setGallery(prev => Array.from(new Set([...prev, ...urls])));
+                                        }}
+                                    />
+                                    {/* Поскольку ImageUploader не поддерживает initialPreviews, 
+                                        существующая галерея (при редактировании) не будет видна в нем.
+                                        Нужно отобразить существующую галерею ОТДЕЛЬНО, если ImageUploader ее не показывает. */}
+                                    
+                                    {gallery.length > 0 && (
+                                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 mt-4">
+                                            {gallery.map((src, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="group relative overflow-hidden rounded-lg border border-white/10 hover:border-[#46D6C8]/30 transition-all"
                                                 >
-                                                    <X className="h-3.5 w-3.5 text-white" />
-                                                </button>
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                )}
+                                                    <img src={src} alt="gallery" className="h-36 w-full object-cover" />
+                                                    <button
+                                                        onClick={() => setGallery(g => g.filter((_, idx) => idx !== i))}
+                                                        className="absolute right-2 top-2 rounded-full bg-red-500/80 p-1.5 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-500 hover:scale-110"
+                                                    >
+                                                        <X className="h-3.5 w-3.5 text-white" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </section>
                     </div>
 
-                    {/* Right column */}
-                    <div className="space-y-5">
-                        {/* Category */}
-                        <section className={adminCardStyle}>
-                            <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
-                            <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
-                                    <Settings2 className="h-4 w-4 text-[#46D6C8]/80" />
-                                    <h3 className="text-[16px] font-semibold text-white">Категорія</h3>
-                                </header>
-                                <NeonPopoverList
-                                    value={category}
-                                    onChange={(v) => setCategory(v as CategoryKey)}
-                                    options={([
-                                        { id: "news" as CategoryKey, label: "Новини", textColor: "text-rose-400", hoverColor: "rose" },
-                                        { id: "tactics" as CategoryKey, label: "Тактика", textColor: "text-violet-400", hoverColor: "violet" },
-                                        { id: "equipment" as CategoryKey, label: "Спорядження", textColor: "text-sky-400", hoverColor: "sky" },
-                                        { id: "game_reports" as CategoryKey, label: "Звіти з ігор", textColor: "text-[#46D6C8]", hoverColor: "teal" },
-                                        { id: "rules" as CategoryKey, label: "Правила", textColor: "text-amber-400", hoverColor: "amber" },
-                                    ]) as NeonOption[]}
-                                    color="teal"
-                                    minW={0}
-                                    width={220}
-                                />
-                                {formErrors.category && (
-                                    <p className="mt-2 text-xs text-rose-400">{formErrors.category}</p>
-                                )}
-                            </div>
-                        </section>
-
-                        {/* SEO */}
-                        <section className={adminCardStyle}>
-                            <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
-                            <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
-                                    <Settings2 className="h-4 w-4 text-[#46D6C8]/80" />
-                                    <h3 className="text-[16px] font-semibold text-white">SEO</h3>
-                                </header>
-                                {/* Slug */}
-                                <div className="space-y-3 mb-4">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <FileText className="h-4 w-4 text-[#46D6C8]/70" />
-                                        <Label className="text-sm text-white">Slug</Label>
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row gap-2">
-                                        <Input
-                                            value={slug}
-                                            onChange={(e) => setSlug(e.target.value)}
-                                            placeholder="article-slug"
-                                            className={`${glassInput} flex-1 focus:glow-focus ${formErrors.slug ? '!ring-rose-500/70 !border-rose-500/70' : ''}`}
-                                        />
-                                        {formErrors.slug && (
-                                            <p className="sm:col-span-2 text-xs text-rose-400">{formErrors.slug}</p>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={normalizeSlug}
-                                            className="px-3 py-2.5 sm:py-2 rounded-lg bg-neutral-900/70 text-neutral-200 ring-1 ring-[#46D6C8]/25 hover:bg-neutral-900 hover:ring-[#46D6C8]/45 transition cursor-target text-sm sm:text-base whitespace-nowrap"
-                                        >
-                                            Нормалізувати
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 text-xs text-[#46D6C8]/60">
-                                        <span className="break-all">
-                                            URL: <span className="text-[#46D6C8]/90">/articles/{slug || "article-slug"}</span>
-                                        </span>
-                                        <span className="whitespace-nowrap">Дозволені: a–z, 0–9, дефіси</span>
-                                    </div>
-                                </div>
-
-                                <div className="h-px bg-gradient-to-r from-transparent via-[#46D6C8]/25 to-transparent mb-4" />
-
-                                {/* Meta Description */}
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Settings2 className="h-4 w-4 text-[#46D6C8]/70" />
-                                        <Label className="text-sm text-white">Meta Description</Label>
-                                    </div>
-                                    <Textarea
-                                        value={meta}
-                                        onChange={(e) => setMeta(e.target.value)}
-                                        placeholder="Опис для пошукових систем..."
-                                        className={`${glassInput} resize-none focus:glow-focus`}
-                                        rows={3}
+                    {/* Moved Right Column Sections (Category, SEO, Video) to Main Flow */}
+                    
+                    {/* Video */}
+                     <section className={getSectionClassName("video")}>
+                        {!isModal && <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />}
+                        <div className={sectionContentClassName}>
+                            <header className="flex items-center gap-2 border-b border-white/10 pb-2 mb-4">
+                                <Film className="h-4 w-4 text-[#46D6C8]" />
+                                <h3 className="text-lg font-semibold text-[#46D6C8]">Відео</h3>
+                            </header>
+                            <Tabs value={videoTab} onValueChange={(v) => setVideoTab(v as any)} className="w-full">
+                                <TabsList className={`${glass} grid w-full grid-cols-2 overflow-hidden shadow-[0_0_20px_rgba(70,214,200,0.12)]`}>
+                                    <TabsTrigger
+                                        value="url"
+                                        className="cursor-target transition-colors data-[state=active]:bg-[#46D6C8]/20"
+                                    >
+                                        URL
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="file"
+                                        className="cursor-target transition-colors data-[state=active]:bg-[#46D6C8]/20"
+                                    >
+                                        Файл
+                                    </TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="url" className="mt-4">
+                                    <Input
+                                        placeholder="https://youtube.com/... або https://your.cdn/video.mp4"
+                                        value={videoUrl}
+                                        onChange={(e) => setVideoUrl(e.target.value)}
+                                        className={`${glassInput} focus:glow-focus`}
                                     />
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className={metaColor}>{metaHint}</span>
-                                        <span className={metaColor}>{metaLen} / 160</span>
-                                    </div>
-                                    {/* progress */}
-                                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5 ring-1 ring-white/10">
-                                        <motion.div
-                                            className={`h-full ${metaStatus === "optimal"
-                                                ? "bg-[#46D6C8]"
-                                                : metaStatus === "short"
-                                                    ? "bg-amber-500"
-                                                    : "bg-rose-500"
-                                                }`}
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${Math.min(100, (metaLen / 160) * 100)}%` }}
-                                            transition={{ duration: 0.3 }}
+                                    {videoUrl && (
+                                        <div className="mt-4 overflow-hidden rounded-lg border border-white/10">
+                                            <iframe
+                                                src={
+                                                    videoUrl.includes("youtube.com/watch?v=")
+                                                        ? videoUrl.replace("watch?v=", "embed/").split("&")[0]
+                                                        : videoUrl.includes("youtu.be/")
+                                                            ? `https://www.youtube.com/embed/${videoUrl.split("youtu.be/")[1]?.split("?")[0]}`
+                                                            : videoUrl
+                                                }
+                                                className="h-56 w-full"
+                                                title="Video preview"
+                                            />
+                                        </div>
+                                    )}
+                                </TabsContent>
+                                <TabsContent value="file" className="mt-4">
+                                    <div className="space-y-4">
+                                         <ImageUploader
+                                            label=""
+                                            folder="articles/videos"
+                                            accept="video/mp4,video/webm,video/quicktime"
+                                            fileType="video"
+                                            currentUrl={videoFileUrl}
+                                            onUpload={(url) => setVideoFileUrl(url)}
                                         />
                                     </div>
+                                </TabsContent>
+                            </Tabs>
+                        </div>
+                    </section>
+
+                    {/* Category */}
+                    <section className={getSectionClassName("category")}>
+                        {!isModal && <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />}
+                         <div className={sectionContentClassName}>
+                            <header className="flex items-center gap-2 border-b border-white/10 pb-2 mb-4">
+                                <Settings2 className="h-4 w-4 text-[#46D6C8]" />
+                                <h3 className="text-lg font-semibold text-[#46D6C8]">Категорія</h3>
+                            </header>
+                            <div className="flex flex-wrap gap-2">
+                                {(Object.keys(categoryLabels) as CategoryKey[]).map((catKey) => {
+                                    const isActive = category === catKey;
+                                    const label = categoryLabels[catKey];
+                                    const style = CATEGORY_STYLES[catKey];
+                                    return (
+                                        <button
+                                            key={catKey}
+                                            type="button"
+                                            onClick={() => setCategory(catKey)}
+                                            className={`
+                                                px-4 py-2 rounded-lg text-sm font-medium transition-all border
+                                                ${isActive
+                                                    ? `${style.activeBg} ${style.text} ring-1 ${style.activeRing} border-transparent shadow-[0_0_15px_rgba(70,214,200,0.2)]`
+                                                    : `bg-white/5 border-white/10 ${style.text} ${style.hoverBg} hover:shadow-[0_0_12px_rgba(70,214,200,0.12)]`}
+                                            `}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {!isModal && formErrors.category && (
+                                <p className="mt-2 text-xs text-rose-400">{formErrors.category}</p>
+                            )}
+                        </div>
+                    </section>
+
+                    {/* SEO */}
+                    <section className={getSectionClassName("seo")}>
+                        {!isModal && <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />}
+                        <div className={sectionContentClassName}>
+                           <header className="flex items-center gap-2 border-b border-white/10 pb-2 mb-4">
+                                <Settings2 className="h-4 w-4 text-[#46D6C8]" />
+                                <h3 className="text-lg font-semibold text-[#46D6C8]">SEO</h3>
+                            </header>
+                            {/* Slug */}
+                            <div className="space-y-3 mb-4">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <FileText className="h-4 w-4 text-[#46D6C8]/70" />
+                                    <Label className="text-sm font-medium text-white/80">Slug</Label>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <Input
+                                        value={slug}
+                                        onChange={(e) => setSlug(e.target.value)}
+                                        placeholder="article-slug"
+                                        className={`${glassInput} flex-1 focus:glow-focus ${formErrors.slug ? '!ring-rose-500/70 !border-rose-500/70' : ''}`}
+                                    />
+                                    {!isModal && formErrors.slug && (
+                                        <p className="sm:col-span-2 text-xs text-rose-400">{formErrors.slug}</p>
+                                    )}
                                     <button
                                         type="button"
-                                        onClick={generateMeta}
-                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-neutral-900/70 text-neutral-200 ring-1 ring-[#46D6C8]/25 hover:bg-neutral-900 hover:ring-[#46D6C8]/45 transition cursor-target"
+                                        onClick={normalizeSlug}
+                                        className="px-3 py-2.5 sm:py-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all cursor-target text-sm sm:text-base whitespace-nowrap"
                                     >
-                                        <Sparkles className="h-4 w-4" />
-                                        Згенерувати опис
+                                        Нормалізувати
                                     </button>
-                                    <p className="text-xs text-[#46D6C8]/60">
-                                        💡 Порада: тримай 140–160 символів, уникай лапок та html, додай 1–2 ключових фрази з тексту.
-                                    </p>
+                                </div>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 text-xs text-[#46D6C8]/60">
+                                    <span className="break-all">
+                                        URL: <span className="text-[#46D6C8]/90">/articles/{slug || "article-slug"}</span>
+                                    </span>
+                                    <span className="whitespace-nowrap">Дозволені: a–z, 0–9, дефіси</span>
                                 </div>
                             </div>
-                        </section>
 
-                        {/* Video */}
-                        <section className={adminCardStyle}>
-                            <span className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[var(--adm-bar)]" />
-                            <div className={adminCardContent}>
-                                <header className="flex items-center gap-2 border-b border-[#46D6C8]/10 pb-0.5 mb-1.5">
-                                    <Film className="h-4 w-4 text-[#46D6C8]/80" />
-                                    <h3 className="text-[16px] font-semibold text-white">Відео</h3>
-                                </header>
-                                <Tabs value={videoTab} onValueChange={(v) => setVideoTab(v as any)} className="w-full">
-                                    <TabsList className={`${glass} grid w-full grid-cols-2 overflow-hidden shadow-[0_0_20px_rgba(70,214,200,0.12)]`}>
-                                        <TabsTrigger
-                                            value="url"
-                                            className="cursor-target transition-colors data-[state=active]:bg-[#46D6C8]/20"
-                                        >
-                                            URL
-                                        </TabsTrigger>
-                                        <TabsTrigger
-                                            value="file"
-                                            className="cursor-target transition-colors data-[state=active]:bg-[#46D6C8]/20"
-                                        >
-                                            Файл
-                                        </TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="url" className="mt-4">
-                                        <Input
-                                            placeholder="https://youtube.com/... або https://your.cdn/video.mp4"
-                                            value={videoUrl}
-                                            onChange={(e) => setVideoUrl(e.target.value)}
-                                            className={`${glassInput} focus:glow-focus`}
-                                        />
-                                        {videoUrl && (
-                                            <div className="mt-4 overflow-hidden rounded-xl border border-[#46D6C8]/20 ring-1 ring-[#46D6C8]/10">
-                                                <iframe
-                                                    src={
-                                                        videoUrl.includes("youtube.com/watch?v=")
-                                                            ? videoUrl.replace("watch?v=", "embed/").split("&")[0]
-                                                            : videoUrl.includes("youtu.be/")
-                                                                ? `https://www.youtube.com/embed/${videoUrl.split("youtu.be/")[1]?.split("?")[0]}`
-                                                                : videoUrl
-                                                    }
-                                                    className="h-56 w-full"
-                                                    title="Video preview"
-                                                />
-                                            </div>
-                                        )}
-                                    </TabsContent>
-                                    <TabsContent value="file" className="mt-4">
-                                        <label
-                                            className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 border-dashed p-6 transition-all ${isDragging
-                                                ? "border-[#46D6C8] bg-[#46D6C8]/20"
-                                                : "border-[#46D6C8]/30 bg-[#46D6C8]/10 hover:border-[#46D6C8]/50 hover:bg-[#46D6C8]/20"
-                                                }`}
-                                        >
-                                            <input
-                                                type="file"
-                                                accept="video/mp4, video/webm"
-                                                className="hidden"
-                                                onChange={(e) => handleVideoFilePick(e.target.files?.[0])}
-                                            />
-                                            <Upload className="h-4 w-4 text-[#46D6C8]/60" />
-                                            <span className="text-sm text-[#46D6C8]/80">Завантажити відеофайл</span>
-                                        </label>
-                                        {videoFileUrl && (
-                                            <video
-                                                controls
-                                                src={videoFileUrl}
-                                                className="mt-4 w-full rounded-xl border border-[#46D6C8]/20 ring-1 ring-[#46D6C8]/10"
-                                            />
-                                        )}
-                                    </TabsContent>
-                                </Tabs>
+                            <div className="border-b border-white/10 mb-4" />
+
+                            {/* Meta Description */}
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Settings2 className="h-4 w-4 text-[#46D6C8]/70" />
+                                    <Label className="text-sm font-medium text-white/80">Meta Description</Label>
+                                </div>
+                                <Textarea
+                                    value={meta}
+                                    onChange={(e) => setMeta(e.target.value)}
+                                    placeholder="Опис для пошукових систем..."
+                                    className={`${glassInput} resize-none focus:glow-focus`}
+                                    rows={3}
+                                />
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className={metaColor}>{metaHint}</span>
+                                    <span className={metaColor}>{metaLen} / 160</span>
+                                </div>
+                                {/* progress */}
+                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5 ring-1 ring-white/10">
+                                    <motion.div
+                                        className={`h-full ${metaStatus === "optimal"
+                                            ? "bg-[#46D6C8]"
+                                            : metaStatus === "short"
+                                                ? "bg-amber-500"
+                                                : "bg-rose-500"
+                                            }`}
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${Math.min(100, (metaLen / 160) * 100)}%` }}
+                                        transition={{ duration: 0.3 }}
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={generateMeta}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all cursor-target"
+                                >
+                                    <Sparkles className="h-4 w-4" />
+                                    Згенерувати опис
+                                </button>
+                                <p className="text-xs text-[#46D6C8]/60">
+                                    💡 Порада: тримай 140–160 символів, уникай лапок та html, додай 1–2 ключових фрази з тексту.
+                                </p>
                             </div>
-                        </section>
-                    </div>
+                         </div>
+                    </section>
                 </div>
-            </main>
+
+        </main>
 
             {/* Loading Overlay */}
             {isUploading && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-[#04070A]/80 rounded-xl p-6 ring-1 ring-[#46D6C8]/30 shadow-[0_0_40px_rgba(70,214,200,.3)]">
                         <div className="flex items-center gap-3">
-                            <div className="h-5 w-5 border-2 border-[#46D6C8]/30 border-t-[#46D6C8] rounded-full animate-spin" />
-                            <p className="text-[#46D6C8] text-sm">Завантаження...</p>
+                            <RadarLoader label="Завантаження..." size={40} />
                         </div>
                     </div>
                 </div>
             )}
         </div>
     );
-}
+});
+
+ArticleEditorModern.displayName = 'ArticleEditorModern';
+
+export default ArticleEditorModern;
