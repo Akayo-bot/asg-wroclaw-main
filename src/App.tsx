@@ -27,7 +27,6 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const ArticlesList = lazy(() => import('@/pages/admin/ArticlesList'));
-const ArticleEditor = lazy(() => import('@/pages/admin/ArticleEditor'));
 const GalleryManager = lazy(() => import('@/pages/admin/GalleryManager'));
 const EventsManager = lazy(() => import('@/pages/admin/EventsManager'));
 const TeamManager = lazy(() => import('@/pages/admin/TeamManager'));
@@ -93,8 +92,6 @@ const App = () => (
                                             >
                                                 <Route index element={<AdminDashboard />} />
                                                 <Route path="articles" element={<ArticlesList />} />
-                                                <Route path="articles/new" element={<ArticleEditor />} />
-                                                <Route path="articles/edit/:id" element={<ArticleEditor />} />
                                                 <Route path="gallery" element={<GalleryManager />} />
                                                 <Route path="events" element={<EventsManager />} />
                                                 <Route path="team" element={<TeamManager />} />

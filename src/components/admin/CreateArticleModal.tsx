@@ -39,6 +39,7 @@ const CreateArticleModal: React.FC<CreateArticleModalProps> = ({ isOpen, onClose
         status: 'published' | 'draft';
         author_id: string;
         gallery: string[] | null;
+        created_at: string;
     };
 
     const getErrorMessage = (error: unknown) => {
@@ -88,6 +89,7 @@ const CreateArticleModal: React.FC<CreateArticleModalProps> = ({ isOpen, onClose
         status,
         author_id: user!.id,
         gallery: payload.gallery?.length ? payload.gallery : null,
+        created_at: payload.schedule || new Date().toISOString(),
     });
 
     const mutateArticleWithGalleryFallback = async <T,>(

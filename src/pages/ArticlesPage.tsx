@@ -63,7 +63,8 @@ const ArticlesPage = () => {
             let query = supabase
                 .from('articles')
                 .select('*')
-                .eq('status', 'published');
+                .eq('status', 'published')
+                .lte('created_at', new Date().toISOString());
 
             if (activeFilter !== 'all') {
                 query = query.eq('category', activeFilter as any);

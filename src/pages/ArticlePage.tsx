@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useI18n } from '@/contexts/I18nContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,8 +27,10 @@ const CATEGORY_LABELS: Record<string, Record<CategoryKey, string>> = {
 };
 
 const ArticlePage = () => {
-    const { id } = useParams<{ id: string }>();
+    const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const isPreview = searchParams.get('preview') === '1';
     const { t, language } = useI18n();
     const viewIncremented = useRef(false);
 
@@ -46,12 +48,19 @@ const ArticlePage = () => {
         try {
             setLoading(true);
 
-            const { data, error } = await supabase
+            let query = supabase
                 .from('articles')
                 .select('*')
-                .eq('id', articleId)
-                .eq('status', 'published')
-                .single();
+                .eq('id', articleId);
+
+            // In preview mode (from admin), skip status and date filters
+            if (!isPreview) {
+                query = query
+                    .eq('status', 'published')
+                    .lte('created_at', new Date().toISOString());
+            }
+
+            const { data, error } = await query.single();
 
             if (error || !data) {
                 navigate('/articles', { replace: true });

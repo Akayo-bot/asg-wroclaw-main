@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '@/contexts/I18nContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Edit, Plus } from 'lucide-react';
+import { Edit, Plus, Eye } from 'lucide-react';
 import LoadingScreen from '@/components/LoadingScreen';
 import { Tables } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
@@ -41,7 +41,9 @@ const ArticlesList = () => {
                 .select('*, author:profiles!author_id(display_name, role, status)');
 
             if (statusFilter !== 'all') {
-                query = query.eq('status', statusFilter as 'draft' | 'published');
+                // 'scheduled' articles are stored as 'published' in DB with a future created_at
+                const dbStatus = statusFilter === 'scheduled' ? 'published' : statusFilter;
+                query = query.eq('status', dbStatus as 'draft' | 'published');
             }
 
             if (categoryFilter !== 'all') {
@@ -121,7 +123,16 @@ const ArticlesList = () => {
     const filtered = useMemo(() => {
         const ql = q.trim().toLowerCase();
         return articles.filter(a => {
-            const matchesStatus = statusFilter === 'all' || a.status === statusFilter;
+            const matchesStatus = (() => {
+                if (statusFilter === 'all') return true;
+                if (statusFilter === 'scheduled') {
+                    return a.status === 'published' && new Date(a.created_at) > new Date();
+                }
+                if (statusFilter === 'published') {
+                    return a.status === 'published' && new Date(a.created_at) <= new Date();
+                }
+                return a.status === statusFilter;
+            })();
             const matchesCat = categoryFilter === 'all' || a.category === (categoryFilter as any);
 
             // Поиск по названию статьи или имени автора
@@ -287,8 +298,8 @@ const ArticlesList = () => {
                                                     <td className="px-4 py-3">
                                                         {(() => {
                                                             const status = a.status as string;
-                                                            const isPublished = status === 'published';
-                                                            const isScheduled = status === 'scheduled';
+                                                            const isScheduled = status === 'published' && new Date(a.created_at) > new Date();
+                                                            const isPublished = status === 'published' && !isScheduled;
                                                             return (
                                                                 <span className={
                                                                     "rounded-md px-2 py-0.5 text-xs ring-1 ring-inset " +
@@ -320,6 +331,16 @@ const ArticlesList = () => {
                                                     <td className="px-4 py-3 text-neutral-400">{formatDate(a.updated_at || a.created_at)}</td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex justify-end gap-2 items-center">
+                                                            <a
+                                                                href={`/article/${a.id}?preview=1`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="group h-8 w-8 flex items-center justify-center rounded-md bg-emerald-500/10 border border-emerald-400/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition-all duration-200"
+                                                                aria-label={t('admin.preview', 'Переглянути')}
+                                                                tabIndex={0}
+                                                            >
+                                                                <Eye className="h-4 w-4 transition-transform duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_rgba(52,211,153,.8)]" />
+                                                            </a>
                                                             <button
                                                                 type="button"
                                                                 className="group h-8 w-8 flex items-center justify-center rounded-md bg-sky-500/10 border border-sky-400/30 text-sky-400 hover:bg-sky-500/20 hover:text-sky-300 transition-all duration-200"
@@ -359,8 +380,8 @@ const ArticlesList = () => {
                                         return `${day} ${month} ${year} • ${hours}:${minutes}`;
                                     };
                                     const status = a.status as string;
-                                    const isPublished = status === 'published';
-                                    const isScheduled = status === 'scheduled';
+                                    const isScheduled = status === 'published' && new Date(a.created_at) > new Date();
+                                    const isPublished = status === 'published' && !isScheduled;
                                     const authorName = (a as any).author?.display_name || a.author_id?.slice(0, 8) + '…' || t('admin.unknown', 'Невідомо');
                                     const authorRole = (a as any).author?.role?.toLowerCase() || 'user';
                                     const roleColor = roleColors[authorRole]?.text || 'text-neutral-400';
@@ -388,6 +409,16 @@ const ArticlesList = () => {
                                                     {getTitle(a)}
                                                 </h3>
                                                 <div className="flex gap-2 flex-shrink-0">
+                                                    <a
+                                                        href={`/article/${a.seo_title_uk || a.id}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                                                        aria-label={t('admin.preview', 'Переглянути')}
+                                                        tabIndex={0}
+                                                    >
+                                                        <Eye className="h-4 w-4 transition-transform duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_rgba(52,211,153,.8)]" />
+                                                    </a>
                                                     <button
                                                         className="group p-2 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400"
                                                         onClick={() => {
